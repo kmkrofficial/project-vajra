@@ -22,6 +22,17 @@ export async function getMemberById(memberId: string, workspaceId: string) {
   return member ?? null;
 }
 
+/** Look up a member by check-in PIN within a specific branch. */
+export async function getMemberByPin(pin: string, branchId: string) {
+  const [member] = await db
+    .select()
+    .from(members)
+    .where(and(eq(members.checkinPin, pin), eq(members.branchId, branchId)))
+    .limit(1);
+
+  return member ?? null;
+}
+
 /** Insert a new member with PENDING_PAYMENT status. */
 export async function insertMember(data: {
   workspaceId: string;

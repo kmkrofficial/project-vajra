@@ -48,6 +48,46 @@ export async function seedWorkspaceForUser(userId: string) {
 }
 
 /**
+ * Add a staff user to an existing workspace with a given role.
+ */
+export async function addStaffToWorkspace(
+  workspaceId: string,
+  branchId: string,
+  userId: string,
+  role: "RECEPTIONIST" | "TRAINER" | "MANAGER"
+) {
+  const sql = getTestDb();
+  await sql`
+    INSERT INTO workspace_users (workspace_id, user_id, role, assigned_branch_id)
+    VALUES (${workspaceId}, ${userId}, ${role}, ${branchId})
+  `;
+  await sql.end();
+}
+
+/**
+ * Seed a member directly in the database (for testing kiosk, etc.).
+ */
+export async function seedMember(data: {
+  workspaceId: string;
+  branchId: string;
+  name: string;
+  phone: string;
+  checkinPin: string;
+  status: "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT";
+  expiryDate?: Date;
+}) {
+  const sql = getTestDb();
+  const [member] = await sql`
+    INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
+    VALUES (${data.workspaceId}, ${data.branchId}, ${data.name}, ${data.phone},
+            ${data.checkinPin}, ${data.status}, ${data.expiryDate ?? null})
+    RETURNING id
+  `;
+  await sql.end();
+  return member.id as string;
+}
+
+/**
  * Clean up test data (run after tests).
  */
 export async function cleanupTestData(workspaceId: string) {
