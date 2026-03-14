@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
-import { insertPlan, togglePlanActive, getPlans } from "@/lib/dal/plans";
+import { insertPlan, togglePlanActive, updatePlan, getPlans } from "@/lib/dal/plans";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
 
@@ -63,6 +63,70 @@ export async function createPlan(data: {
   } catch (err) {
     logger.error({ err, action: "create_plan", workspaceId: ws.workspaceId, userId: session.user.id }, "Failed to create plan");
     return { success: false, error: "Failed to create plan." };
+  }
+}
+
+/**
+ * Update an existing plan's name, price, and/or duration.
+ * **RBAC:** SUPER_ADMIN or MANAGER only.
+ *
+ * @param planId - UUID of the plan to update.
+ * @param data - Partial plan details to update.
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
+export async function updatePlanAction(
+  planId: string,
+  data: { name?: string; price?: number; durationDays?: number }
+): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session?.user) return { success: false, error: "Not authenticated." };
+
+  const ws = await getActiveWorkspace();
+  if (!ws) return { success: false, error: "No active workspace." };
+
+  const membership = await verifyWorkspaceMembership(
+    ws.workspaceId,
+    session.user.id
+  );
+  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+    return { success: false, error: "Insufficient permissions." };
+  }
+
+  if (data.name !== undefined && data.name.trim().length < 2) {
+    return { success: false, error: "Plan name must be at least 2 characters." };
+  }
+  if (data.price !== undefined && data.price < 1) {
+    return { success: false, error: "Price must be at least ₹1." };
+  }
+  if (data.durationDays !== undefined && data.durationDays < 1) {
+    return { success: false, error: "Duration must be at least 1 day." };
+  }
+
+  try {
+    const updated = await updatePlan(planId, ws.workspaceId, {
+      name: data.name?.trim(),
+      price: data.price,
+      durationDays: data.durationDays,
+    });
+
+    if (!updated) {
+      return { success: false, error: "Plan not found." };
+    }
+
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "UPDATE_PLAN",
+      entityType: "PLAN",
+      entityId: planId,
+      details: data,
+    });
+
+    revalidatePath("/app/settings/plans");
+    return { success: true };
+  } catch (err) {
+    logger.error({ err, action: "update_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId }, "Failed to update plan");
+    return { success: false, error: "Failed to update plan." };
   }
 }
 

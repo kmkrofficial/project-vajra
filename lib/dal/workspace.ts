@@ -201,6 +201,42 @@ export async function createBranch(
   }
 }
 
+/** Update a branch's details (name, phone, coordinates). */
+export async function updateBranch(
+  branchId: string,
+  workspaceId: string,
+  data: {
+    name?: string;
+    contactPhone?: string | null;
+    latitude?: string | null;
+    longitude?: string | null;
+  }
+) {
+  const start = performance.now();
+  try {
+    const updates: Record<string, unknown> = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.contactPhone !== undefined) updates.contactPhone = data.contactPhone;
+    if (data.latitude !== undefined) updates.latitude = data.latitude;
+    if (data.longitude !== undefined) updates.longitude = data.longitude;
+
+    const [updated] = await db
+      .update(branches)
+      .set(updates)
+      .where(and(eq(branches.id, branchId), eq(branches.workspaceId, workspaceId)))
+      .returning();
+
+    logger.debug(
+      { fn: "updateBranch", workspaceId, branchId, ms: Math.round(performance.now() - start) },
+      "DAL update complete"
+    );
+    return updated ?? null;
+  } catch (err) {
+    logger.error({ err, fn: "updateBranch", workspaceId, branchId }, "DAL update failed");
+    throw err;
+  }
+}
+
 /** Get all branches for a workspace with coordinates. */
 export async function getBranches(workspaceId: string) {
   const start = performance.now();

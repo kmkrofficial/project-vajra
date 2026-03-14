@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -82,7 +83,9 @@ export function TopBar({
             <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" sideOffset={8}>
-            <DropdownMenuLabel>Switch Gym</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Switch Gym</DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             {workspaces.map((ws) => (
               <DropdownMenuItem
@@ -140,7 +143,9 @@ export function TopBar({
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={8}>
-            <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut className="size-4" strokeWidth={1.5} />

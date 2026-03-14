@@ -75,6 +75,33 @@ export async function insertPlan(data: {
   }
 }
 
+/** Update a plan's name, price, and/or duration. */
+export async function updatePlan(
+  planId: string,
+  workspaceId: string,
+  data: { name?: string; price?: number; durationDays?: number }
+) {
+  const start = performance.now();
+  try {
+    const updates: Record<string, unknown> = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.price !== undefined) updates.price = data.price;
+    if (data.durationDays !== undefined) updates.durationDays = data.durationDays;
+
+    const [updated] = await db
+      .update(plans)
+      .set(updates)
+      .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
+      .returning();
+
+    logger.debug({ fn: "updatePlan", workspaceId, planId, ms: Math.round(performance.now() - start) }, "DAL update complete");
+    return updated ?? null;
+  } catch (err) {
+    logger.error({ err, fn: "updatePlan", workspaceId, planId }, "DAL update failed");
+    throw err;
+  }
+}
+
 /** Toggle a plan's active state. */
 export async function togglePlanActive(
   planId: string,

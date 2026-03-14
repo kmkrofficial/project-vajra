@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, MapPin, GitBranch } from "lucide-react";
+import { Plus, MapPin, GitBranch, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createBranchAction } from "@/lib/actions/branches";
+import { createBranchAction, updateBranchAction } from "@/lib/actions/branches";
 
 interface Branch {
   id: string;
@@ -37,6 +37,8 @@ export function BranchesList({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editBranch, setEditBranch] = useState<Branch | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,6 +60,29 @@ export function BranchesList({
       toast.error(result.error ?? "Failed to create branch.");
     }
     setLoading(false);
+  }
+
+  async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editBranch) return;
+    setEditLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const result = await updateBranchAction(editBranch.id, {
+      name: formData.get("name") as string,
+      contactPhone: (formData.get("contactPhone") as string) || undefined,
+      latitude: (formData.get("latitude") as string) || undefined,
+      longitude: (formData.get("longitude") as string) || undefined,
+    });
+
+    if (result.success) {
+      toast.success("Branch updated!");
+      setEditBranch(null);
+      router.refresh();
+    } else {
+      toast.error(result.error ?? "Failed to update branch.");
+    }
+    setEditLoading(false);
   }
 
   return (
@@ -184,10 +209,91 @@ export function BranchesList({
                   No GPS
                 </Badge>
               )}
+              {isOwner && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditBranch(branch)}
+                  data-testid={`edit-branch-${branch.id}`}
+                >
+                  <Pencil className="size-3.5" strokeWidth={1.5} />
+                  Edit
+                </Button>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      <Dialog open={!!editBranch} onOpenChange={(open) => !open && setEditBranch(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Branch</DialogTitle>
+            <DialogDescription>
+              Update branch details. Coordinate changes affect geolocation-based attendance.
+            </DialogDescription>
+          </DialogHeader>
+          {editBranch && (
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-branch-name">Branch Name</Label>
+                <Input
+                  id="edit-branch-name"
+                  name="name"
+                  defaultValue={editBranch.name}
+                  required
+                  data-testid="edit-branch-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-branch-phone">Contact Phone (optional)</Label>
+                <Input
+                  id="edit-branch-phone"
+                  name="contactPhone"
+                  defaultValue={editBranch.contactPhone ?? ""}
+                  placeholder="9876543210"
+                  data-testid="edit-branch-phone"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-branch-lat">Latitude</Label>
+                  <Input
+                    id="edit-branch-lat"
+                    name="latitude"
+                    defaultValue={editBranch.latitude ?? ""}
+                    placeholder="e.g. 12.9716"
+                    inputMode="decimal"
+                    data-testid="edit-branch-lat"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-branch-lng">Longitude</Label>
+                  <Input
+                    id="edit-branch-lng"
+                    name="longitude"
+                    defaultValue={editBranch.longitude ?? ""}
+                    placeholder="e.g. 77.5946"
+                    inputMode="decimal"
+                    data-testid="edit-branch-lng"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Open Google Maps → right-click your gym → copy the Lat/Lng values.
+              </p>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={editLoading}
+                data-testid="submit-edit-branch"
+              >
+                {editLoading ? "Saving…" : "Save Changes"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
