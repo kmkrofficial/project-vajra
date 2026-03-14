@@ -138,7 +138,7 @@ export const members = pgTable("members", {
   name: text("name").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
   email: varchar("email", { length: 255 }),
-  checkinPin: varchar("checkin_pin", { length: 4 }).notNull(),
+  checkinPin: varchar("checkin_pin", { length: 4 }),
   status: memberStatusEnum("status").notNull().default("PENDING_PAYMENT"),
   expiryDate: timestamp("expiry_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

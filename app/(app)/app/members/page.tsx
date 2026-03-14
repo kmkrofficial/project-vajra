@@ -35,10 +35,22 @@ export default async function MembersPage() {
     ? allMembers
     : allMembers.filter((m) => m.branchId === effectiveBranchId);
 
+  // Map to include fields needed by the privacy modal
+  const memberData = members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    phone: m.phone,
+    email: m.email,
+    checkinPin: m.checkinPin,
+    status: m.status,
+    expiryDate: m.expiryDate,
+    createdAt: m.createdAt,
+  }));
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       <MembersList
-        members={members}
+        members={memberData}
         plans={plans}
         defaultBranchId={effectiveBranchId}
         ownerUpiId={workspace.ownerUpiId}

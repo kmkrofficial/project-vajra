@@ -95,7 +95,6 @@ export function MembersView({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
                   <TableHead>Expiry</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
@@ -106,7 +105,6 @@ export function MembersView({
                     <TableCell className="font-medium">
                       {member.name}
                     </TableCell>
-                    <TableCell>{member.phone}</TableCell>
                     <TableCell>
                       {member.expiryDate
                         ? new Date(member.expiryDate).toLocaleDateString(
@@ -175,7 +173,6 @@ export function MembersView({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Expiry</TableHead>
                 </TableRow>
@@ -189,7 +186,6 @@ export function MembersView({
                     <TableCell className="font-medium">
                       {member.name}
                     </TableCell>
-                    <TableCell>{member.phone}</TableCell>
                     <TableCell>
                       <Badge
                         variant={STATUS_VARIANT[member.status] ?? "secondary"}

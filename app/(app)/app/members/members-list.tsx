@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search, MessageCircle, UserPlus } from "lucide-react";
+import { Search, MessageCircle, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
 import { AddMemberSheet } from "@/components/features/add-member-sheet";
 
@@ -13,6 +21,8 @@ interface Member {
   id: string;
   name: string;
   phone: string;
+  email?: string | null;
+  checkinPin?: string | null;
   status: "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT";
   expiryDate: Date | null;
   createdAt: Date;
@@ -64,6 +74,7 @@ export function MembersList({
   gymName: string;
 }) {
   const [query, setQuery] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   const cheapestPlan =
     plans.length > 0
@@ -73,9 +84,7 @@ export function MembersList({
   const filtered = members.filter((m) => {
     if (!query) return true;
     const q = query.toLowerCase();
-    return (
-      m.name.toLowerCase().includes(q) || m.phone.includes(q)
-    );
+    return m.name.toLowerCase().includes(q) || m.phone.includes(q);
   });
 
   return (
@@ -125,16 +134,15 @@ export function MembersList({
                   <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
                 </Avatar>
 
-                {/* Info */}
+                {/* Info — PII hidden, only name + status context */}
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
                     {member.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {member.phone}
-                    {member.expiryDate && (
-                      <> · Exp {new Date(member.expiryDate).toLocaleDateString("en-IN")}</>
-                    )}
+                    {member.expiryDate
+                      ? `Exp ${new Date(member.expiryDate).toLocaleDateString("en-IN")}`
+                      : "No expiry set"}
                   </p>
                 </div>
 
@@ -143,36 +151,157 @@ export function MembersList({
                   {member.status.replace("_", " ")}
                 </Badge>
 
-                {/* WhatsApp button — opens in new tab via window.open */}
+                {/* View Profile button */}
                 <Button
                   size="sm"
-                  className={
-                    expiring
-                      ? "gap-1 bg-green-600 text-white hover:bg-green-700"
-                      : "gap-1"
-                  }
-                  variant={expiring ? "default" : "outline"}
-                  data-testid={`wa-msg-${member.id}`}
-                  onClick={() => {
-                    const url = generateWhatsAppLink(
-                      { name: member.name, phone: member.phone },
-                      ownerUpiId ?? "",
-                      cheapestPlan?.price ?? 0,
-                      gymName
-                    );
-                    window.open(url, "_blank", "noopener,noreferrer");
-                  }}
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => setSelectedMember(member)}
+                  data-testid={`view-profile-${member.id}`}
                 >
-                  <MessageCircle className="size-3.5" strokeWidth={1.5} />
-                  <span className="hidden sm:inline">
-                    {expiring ? "Remind" : "Message"}
-                  </span>
+                  <Eye className="size-3.5" strokeWidth={1.5} />
+                  <span className="hidden sm:inline">View</span>
                 </Button>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* ─── Member Profile Dialog (Privacy Modal) ─── */}
+      <Dialog
+        open={!!selectedMember}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMember(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {selectedMember && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Member Profile</DialogTitle>
+                <DialogDescription>
+                  Private details — visible only to staff in this view.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Name & Status */}
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-12">
+                    <AvatarFallback className="text-lg">
+                      {getInitials(selectedMember.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-semibold text-foreground truncate">
+                      {selectedMember.name}
+                    </p>
+                    <Badge
+                      variant={
+                        STATUS_VARIANT[selectedMember.status] ?? "secondary"
+                      }
+                    >
+                      {selectedMember.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Contact Info */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Contact
+                  </h3>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-sm">
+                    <span className="text-muted-foreground">Phone</span>
+                    <span className="font-medium text-foreground" data-testid="profile-phone">
+                      {selectedMember.phone}
+                    </span>
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium text-foreground" data-testid="profile-email">
+                      {selectedMember.email || "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Plan & Expiry */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Membership
+                  </h3>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-sm">
+                    <span className="text-muted-foreground">Expiry</span>
+                    <span className="font-medium text-foreground">
+                      {selectedMember.expiryDate
+                        ? new Date(selectedMember.expiryDate).toLocaleDateString(
+                            "en-IN",
+                            { day: "numeric", month: "short", year: "numeric" }
+                          )
+                        : "—"}
+                    </span>
+                    <span className="text-muted-foreground">Joined</span>
+                    <span className="font-medium text-foreground">
+                      {new Date(selectedMember.createdAt).toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short", year: "numeric" }
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Kiosk Check-In PIN */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Kiosk Check-In PIN
+                  </h3>
+                  <div
+                    className="inline-flex items-center rounded-lg bg-muted px-4 py-2"
+                    data-testid="profile-kiosk-pin"
+                  >
+                    <span className="font-mono text-2xl font-bold tracking-[0.3em] text-foreground">
+                      {selectedMember.checkinPin || "—"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Share this PIN with the member for self check-in at the kiosk.
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 gap-1.5 bg-green-600 text-white hover:bg-green-700"
+                    onClick={() => {
+                      const url = generateWhatsAppLink(
+                        {
+                          name: selectedMember.name,
+                          phone: selectedMember.phone,
+                        },
+                        ownerUpiId ?? "",
+                        cheapestPlan?.price ?? 0,
+                        gymName
+                      );
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                    data-testid={`profile-wa-msg-${selectedMember.id}`}
+                  >
+                    <MessageCircle className="size-4" strokeWidth={1.5} />
+                    Message on WhatsApp
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

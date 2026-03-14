@@ -80,11 +80,13 @@ export function AddMemberSheet({
     const name = formData.get("name") as string;
     const phone = formData.get("phone") as string;
     const email = (formData.get("email") as string) || undefined;
+    const kioskPin = (formData.get("kioskPin") as string) || undefined;
 
     const parsed = memberFormSchema.safeParse({
       name,
       phone,
       email: email || "",
+      kioskPin: kioskPin || "",
       planId: selectedPlanId || "",
       branchId: defaultBranchId || "",
     });
@@ -106,6 +108,7 @@ export function AddMemberSheet({
       name: parsed.data.name,
       phone: parsed.data.phone,
       email: parsed.data.email || undefined,
+      kioskPin: parsed.data.kioskPin || undefined,
       planId: parsed.data.planId,
       branchId: parsed.data.branchId,
     });
@@ -204,6 +207,23 @@ export function AddMemberSheet({
                 />
                 {fieldErrors.email && (
                   <p className="text-xs text-destructive">{fieldErrors.email}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sheet-kiosk-pin">Kiosk PIN (4 digits)</Label>
+                <Input
+                  id="sheet-kiosk-pin"
+                  name="kioskPin"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="e.g. 1234"
+                  data-testid="sheet-kiosk-pin"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to auto-generate a secure PIN.
+                </p>
+                {fieldErrors.kioskPin && (
+                  <p className="text-xs text-destructive">{fieldErrors.kioskPin}</p>
                 )}
               </div>
               <div className="space-y-2">

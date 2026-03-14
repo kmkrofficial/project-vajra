@@ -32,6 +32,7 @@ export async function createMember(data: {
   name: string;
   phone: string;
   email?: string;
+  kioskPin?: string;
   planId: string;
   branchId: string;
 }): Promise<
@@ -75,6 +76,9 @@ export async function createMember(data: {
     return { success: false, error: "Workspace not found." };
   }
 
+  // Use provided kiosk PIN or auto-generate a random 4-digit PIN
+  const checkinPin = parsed.data.kioskPin || generatePin();
+
   try {
     // Create member with PENDING_PAYMENT status
     const member = await insertMember({
@@ -83,7 +87,7 @@ export async function createMember(data: {
       name: data.name,
       phone: data.phone,
       email: data.email || null,
-      checkinPin: generatePin(),
+      checkinPin,
     });
 
     // Create a pending transaction
