@@ -1,10 +1,26 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getActivePlans } from "@/lib/dal/plans";
 import { getMembers } from "@/lib/dal/members";
 import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  UserPlus,
+  ScanLine,
+  IndianRupee,
+  Users,
+  AlertTriangle,
+  ClipboardCheck,
+} from "lucide-react";
 import { MembersView } from "./members-view";
 
 /** Roles that can see revenue stats and all-branches filter. */
@@ -39,63 +55,145 @@ export default async function DashboardPage() {
     : allMembers.filter((m) => m.branchId === effectiveBranchId);
 
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
+  const pendingCount = members.filter(
+    (m) => m.status === "PENDING_PAYMENT"
+  ).length;
 
-  // Revenue stats (admin-only)
-  const totalRevenue = isAdmin
-    ? members.reduce(() => 0, 0) // Placeholder — real revenue comes from transactions
-    : null;
+  // Members expiring within 3 days
+  const now = new Date();
+  const threeDaysFromNow = new Date();
+  threeDaysFromNow.setDate(now.getDate() + 3);
+  const expiringIn3Days = members.filter(
+    (m) =>
+      m.status === "ACTIVE" &&
+      m.expiryDate &&
+      new Date(m.expiryDate) <= threeDaysFromNow &&
+      new Date(m.expiryDate) >= now
+  ).length;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              {workspace.name}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {workspace.primaryBranchName} &middot; {activeCount} active
-              members
-            </p>
-          </div>
-        </div>
-
-        {/* Revenue summary — visible to SUPER_ADMIN & MANAGER only */}
-        {isAdmin && (
-          <div
-            className="grid grid-cols-3 gap-4"
-            data-testid="revenue-summary"
+    <div className="space-y-6 p-4 md:p-6">
+      {/* ── Action FABs ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/app/members?action=add">
+          <Button
+            className="h-14 w-full gap-2 text-base font-semibold"
+            data-testid="fab-add-member"
           >
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">Active Members</p>
+            <UserPlus className="size-5" />
+            Add Member
+          </Button>
+        </Link>
+        <Link href="/kiosk">
+          <Button
+            variant="outline"
+            className="h-14 w-full gap-2 text-base font-semibold"
+            data-testid="fab-launch-kiosk"
+          >
+            <ScanLine className="size-5" />
+            Launch Kiosk
+          </Button>
+        </Link>
+      </div>
+
+      {/* ── Hero Metric Cards ────────────────────────────────────── */}
+      {isAdmin ? (
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
+          data-testid="revenue-summary"
+        >
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <IndianRupee className="size-3.5" />
+                Today&apos;s Revenue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-500">₹0</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Users className="size-3.5" />
+                Active Members
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <p className="text-2xl font-bold text-foreground">
                 {activeCount}
               </p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">Expired Members</p>
-              <p className="text-2xl font-bold text-foreground">
-                {members.filter((m) => m.status === "EXPIRED").length}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <AlertTriangle className="size-3.5" />
+                Expiring in 3d
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-500">
+                {expiringIn3Days}
               </p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">Pending Payment</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <ClipboardCheck className="size-3.5" />
+                Pending Payments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <p className="text-2xl font-bold text-foreground">
-                {members.filter((m) => m.status === "PENDING_PAYMENT").length}
+                {pendingCount}
               </p>
-            </div>
-          </div>
-        )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div
+          className="grid grid-cols-2 gap-3"
+          data-testid="staff-summary"
+        >
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <ClipboardCheck className="size-3.5" />
+                Today&apos;s Check-ins
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">0</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <AlertTriangle className="size-3.5" />
+                Expiring in 3d
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-500">
+                {expiringIn3Days}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        <MembersView
-          members={members}
-          plans={plans}
-          defaultBranchId={effectiveBranchId}
-          ownerUpiId={workspace.ownerUpiId}
-          gymName={workspace.name}
-          role={role}
-        />
-      </div>
+      {/* ── Members view with expiring list ──────────────────────── */}
+      <MembersView
+        members={members}
+        plans={plans}
+        defaultBranchId={effectiveBranchId}
+        ownerUpiId={workspace.ownerUpiId}
+        gymName={workspace.name}
+        role={role}
+      />
     </div>
   );
 }
