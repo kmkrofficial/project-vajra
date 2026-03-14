@@ -70,6 +70,7 @@ export function TopBar({
       {workspaces.length > 1 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
+            id="ws-switcher-trigger"
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
             data-testid="workspace-switcher"
           >
@@ -100,6 +101,7 @@ export function TopBar({
       <div className="flex items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger
+            id="theme-toggle-trigger"
             className="flex items-center justify-center rounded-lg p-2 hover:bg-muted transition-colors"
             data-testid="theme-toggle"
           >
@@ -125,6 +127,7 @@ export function TopBar({
 
         <DropdownMenu>
           <DropdownMenuTrigger
+            id="user-menu-trigger"
             className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors"
             data-testid="user-menu"
           >

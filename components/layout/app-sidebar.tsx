@@ -9,7 +9,6 @@ import {
   Settings,
   Dumbbell,
   ScanLine,
-  KeyRound,
   BarChart3,
   LogOut,
   ClipboardList,
@@ -33,7 +32,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Analytics", href: "/app/analytics", icon: BarChart3, adminOnly: true },
   { label: "Kiosk", href: "/kiosk", icon: ScanLine },
   { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
-  { label: "Kiosk PIN", href: "/app/settings/kiosk", icon: KeyRound, adminOnly: true },
   { label: "Manage Plans", href: "/app/settings/plans", icon: ClipboardList, adminOnly: true },
   { label: "Settings", href: "/app/settings", icon: Settings, adminOnly: true },
 ];

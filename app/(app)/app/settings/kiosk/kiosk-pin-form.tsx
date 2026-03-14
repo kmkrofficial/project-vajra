@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { setKioskPin } from "@/lib/actions/kiosk";
+import { setupKioskPin } from "@/lib/actions/settings";
 
 export function KioskPinForm({
-  branchId,
   hasExistingPin,
 }: {
-  branchId: string;
   hasExistingPin: boolean;
 }) {
   const [pin, setPin] = useState("");
@@ -38,7 +36,7 @@ export function KioskPinForm({
     }
 
     setLoading(true);
-    const result = await setKioskPin(branchId, pin);
+    const result = await setupKioskPin(pin);
 
     if (result.success) {
       toast.success("Kiosk exit PIN saved!");

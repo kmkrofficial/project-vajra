@@ -168,6 +168,25 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Configuration ──────────────────────────────────────────────────────────
+
+export const configuration = pgTable("configuration", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id").references(() => branches.id, {
+    onDelete: "cascade",
+  }),
+  kioskPin: text("kiosk_pin"), // hashed — never plain text
+  themeMode: varchar("theme_mode", { length: 20 }).notNull().default("system"),
+  defaultPlanId: uuid("default_plan_id").references(() => plans.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ─── Audit Logs ─────────────────────────────────────────────────────────────
 
 export const auditLogs = pgTable("audit_logs", {
@@ -206,6 +225,7 @@ export const gymWorkspaceRelations = relations(gymWorkspaces, ({ many }) => ({
   members: many(members),
   transactions: many(transactions),
   auditLogs: many(auditLogs),
+  configurations: many(configuration),
 }));
 
 export const branchRelations = relations(branches, ({ one, many }) => ({
@@ -275,5 +295,20 @@ export const auditLogRelations = relations(auditLogs, ({ one }) => ({
   user: one(user, {
     fields: [auditLogs.userId],
     references: [user.id],
+  }),
+}));
+
+export const configurationRelations = relations(configuration, ({ one }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [configuration.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  branch: one(branches, {
+    fields: [configuration.branchId],
+    references: [branches.id],
+  }),
+  defaultPlan: one(plans, {
+    fields: [configuration.defaultPlanId],
+    references: [plans.id],
   }),
 }));

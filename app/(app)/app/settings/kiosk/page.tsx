@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails, getBranchKioskPin } from "@/lib/dal/workspace";
+import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getWorkspaceConfig } from "@/lib/dal/config";
 import { KioskPinForm } from "./kiosk-pin-form";
 
 export default async function KioskSettingsPage() {
@@ -19,9 +20,8 @@ export default async function KioskSettingsPage() {
   }
 
   const branchId = ws.branchId ?? workspace.branches[0]?.id ?? null;
-  const currentPin = branchId
-    ? await getBranchKioskPin(branchId, ws.workspaceId)
-    : null;
+  const config = await getWorkspaceConfig(ws.workspaceId, branchId);
+  const hasPin = !!config?.kioskPin;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -34,7 +34,7 @@ export default async function KioskSettingsPage() {
       </div>
 
       {branchId ? (
-        <KioskPinForm branchId={branchId} hasExistingPin={!!currentPin} />
+        <KioskPinForm hasExistingPin={hasPin} />
       ) : (
         <p className="text-sm text-destructive">
           No branch found. Create a branch first.
