@@ -166,3 +166,48 @@ export async function getEmployeeByUserId(
     throw err;
   }
 }
+
+/** Update an employee's role. Returns the old role or null if not found. */
+export async function updateEmployeeRole(
+  workspaceId: string,
+  employeeId: string,
+  newRole: "manager" | "trainer" | "receptionist"
+): Promise<{ oldRole: string } | null> {
+  const start = performance.now();
+  try {
+    // Fetch old role first
+    const [existing] = await db
+      .select({ role: employees.role })
+      .from(employees)
+      .where(
+        and(
+          eq(employees.id, employeeId),
+          eq(employees.workspaceId, workspaceId)
+        )
+      )
+      .limit(1);
+
+    if (!existing) return null;
+
+    const oldRole = existing.role;
+
+    await db
+      .update(employees)
+      .set({ role: newRole })
+      .where(
+        and(
+          eq(employees.id, employeeId),
+          eq(employees.workspaceId, workspaceId)
+        )
+      );
+
+    logger.debug(
+      { fn: "updateEmployeeRole", workspaceId, employeeId, oldRole, newRole, ms: Math.round(performance.now() - start) },
+      "DAL update complete"
+    );
+    return { oldRole };
+  } catch (err) {
+    logger.error({ err, fn: "updateEmployeeRole", workspaceId, employeeId }, "DAL update failed");
+    throw err;
+  }
+}

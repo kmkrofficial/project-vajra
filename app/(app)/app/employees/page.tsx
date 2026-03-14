@@ -26,9 +26,11 @@ export default async function EmployeesPage() {
     getBranches(ws.workspaceId),
   ]);
 
+  const isOwner = role === "SUPER_ADMIN";
+
   return (
     <div className="p-4 md:p-6">
-      <EmployeesList employees={employeeList} branches={branchList} />
+      <EmployeesList employees={employeeList} branches={branchList} isOwner={isOwner} />
     </div>
   );
 }

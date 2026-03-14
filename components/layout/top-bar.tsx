@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Dumbbell, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
 import { signOutUser } from "@/lib/actions/auth";
+import { switchWorkspaceAction } from "@/lib/actions/workspace";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,18 +41,21 @@ export function TopBar({
     await signOutUser();
   }
 
-  function handleSwitchWorkspace(ws: {
+  async function handleSwitchWorkspace(ws: {
     id: string;
     name: string;
     role: string;
   }) {
-    setWorkspace(
-      ws.id,
-      null,
-      ws.role as "SUPER_ADMIN" | "MANAGER" | "RECEPTIONIST" | "TRAINER"
-    );
-    router.push("/app/dashboard");
-    router.refresh();
+    const result = await switchWorkspaceAction(ws.id);
+    if (result.success) {
+      setWorkspace(
+        ws.id,
+        null,
+        ws.role as "SUPER_ADMIN" | "MANAGER" | "RECEPTIONIST" | "TRAINER"
+      );
+      router.push("/app/dashboard");
+      router.refresh();
+    }
   }
 
   return (

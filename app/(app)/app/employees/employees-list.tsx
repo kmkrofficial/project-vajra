@@ -23,7 +23,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { addEmployeeAction } from "@/lib/actions/employees";
+import { addEmployeeAction, updateEmployeeRoleAction } from "@/lib/actions/employees";
 
 interface Employee {
   id: string;
@@ -50,9 +50,11 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive"> = {
 export function EmployeesList({
   employees,
   branches,
+  isOwner = false,
 }: {
   employees: Employee[];
   branches: Branch[];
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -195,9 +197,13 @@ export function EmployeesList({
                   {emp.branchName || "No branch"}
                 </p>
               </div>
-              <Badge variant={ROLE_COLORS[emp.role] ?? "secondary"}>
-                {emp.role}
-              </Badge>
+              {isOwner ? (
+                <InlineRoleSelect employeeId={emp.id} currentRole={emp.role} />
+              ) : (
+                <Badge variant={ROLE_COLORS[emp.role] ?? "secondary"}>
+                  {emp.role}
+                </Badge>
+              )}
               <Badge variant={emp.status === "active" ? "default" : "secondary"}>
                 {emp.status}
               </Badge>
@@ -206,5 +212,45 @@ export function EmployeesList({
         </div>
       )}
     </div>
+  );
+}
+
+function InlineRoleSelect({
+  employeeId,
+  currentRole,
+}: {
+  employeeId: string;
+  currentRole: string;
+}) {
+  const router = useRouter();
+  const [updating, setUpdating] = useState(false);
+
+  async function handleRoleChange(newRole: string | null) {
+    if (!newRole || newRole === currentRole) return;
+    setUpdating(true);
+    const result = await updateEmployeeRoleAction(employeeId, newRole);
+    if (result.success) {
+      toast.success("Role updated");
+      router.refresh();
+    } else {
+      toast.error(result.error ?? "Failed to update role.");
+    }
+    setUpdating(false);
+  }
+
+  return (
+    <Select value={currentRole} onValueChange={handleRoleChange} disabled={updating}>
+      <SelectTrigger
+        className="h-7 w-28 text-xs"
+        data-testid={`role-select-${employeeId}`}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="manager">Manager</SelectItem>
+        <SelectItem value="trainer">Trainer</SelectItem>
+        <SelectItem value="receptionist">Receptionist</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
