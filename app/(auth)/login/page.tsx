@@ -32,7 +32,7 @@ export default function LoginPage() {
     const result = await signInUser(email, password);
 
     if (result.success) {
-      router.push("/dashboard");
+      router.push("/workspaces");
       router.refresh();
     } else {
       toast.error(result.error ?? "Invalid credentials.");
