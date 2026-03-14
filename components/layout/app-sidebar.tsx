@@ -8,6 +8,7 @@ import {
   GitBranch,
   Settings,
   Dumbbell,
+  ScanLine,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/app/members", icon: Users },
+  { label: "Kiosk", href: "/kiosk", icon: ScanLine },
   { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
-  { label: "Settings", href: "/app/settings/plans", icon: Settings },
+  { label: "Settings", href: "/app/settings/plans", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {

@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Users,
   ScanLine,
-  Menu,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const TABS: TabItem[] = [
   { label: "Home", href: "/app/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/app/members", icon: Users },
   { label: "Walk-ins", href: "/kiosk", icon: ScanLine },
-  { label: "Menu", href: "/app/settings/plans", icon: Menu },
+  { label: "Settings", href: "/app/settings/plans", icon: Settings },
 ];
 
 export function MobileNav() {
