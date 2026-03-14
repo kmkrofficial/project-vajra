@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { members, transactions } from "@/lib/db/schema";
 
@@ -120,4 +120,25 @@ export async function getTransactionById(
     .limit(1);
 
   return txn ?? null;
+}
+
+/**
+ * Mark all ACTIVE members whose expiry_date has passed as EXPIRED.
+ * Returns the count of rows updated (for logging).
+ */
+export async function markExpiredMembers(): Promise<number> {
+  const now = new Date();
+
+  const result = await db
+    .update(members)
+    .set({ status: "EXPIRED" })
+    .where(
+      and(
+        eq(members.status, "ACTIVE"),
+        lt(members.expiryDate, now)
+      )
+    )
+    .returning({ id: members.id });
+
+  return result.length;
 }
