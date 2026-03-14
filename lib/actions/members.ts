@@ -99,7 +99,8 @@ export async function createMember(data: {
         amount: plan.price,
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("[createMember]", err);
     return { success: false, error: "Failed to create member." };
   }
 }
@@ -134,7 +135,8 @@ export async function markAsPaid(
 
     revalidatePath("/app/dashboard");
     return { success: true };
-  } catch {
+  } catch (err) {
+    console.error("[markAsPaid]", err);
     return { success: false, error: "Failed to complete payment." };
   }
 }

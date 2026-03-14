@@ -22,16 +22,21 @@ export async function processKioskCheckin(
     return { success: false, error: "No branch configured" };
   }
 
-  const member = await getMemberByPin(pin, branchId);
+  try {
+    const member = await getMemberByPin(pin, branchId);
 
-  if (!member) {
-    return { success: false, error: "Expired or Invalid PIN" };
+    if (!member) {
+      return { success: false, error: "Expired or Invalid PIN" };
+    }
+
+    if (member.status !== "ACTIVE") {
+      return { success: false, error: "Expired or Invalid PIN" };
+    }
+
+    // Member is active — check-in is valid
+    return { success: true, memberName: member.name };
+  } catch (err) {
+    console.error("[Kiosk Checkin Error]", err);
+    return { success: false, error: "Check-in failed. Please try again." };
   }
-
-  if (member.status !== "ACTIVE") {
-    return { success: false, error: "Expired or Invalid PIN" };
-  }
-
-  // Member is active — check-in is valid
-  return { success: true, memberName: member.name };
 }

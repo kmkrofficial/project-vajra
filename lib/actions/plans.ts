@@ -42,7 +42,8 @@ export async function createPlan(data: {
 
     revalidatePath("/app/settings/plans");
     return { success: true };
-  } catch {
+  } catch (err) {
+    console.error("[createPlan]", err);
     return { success: false, error: "Failed to create plan." };
   }
 }
@@ -69,7 +70,8 @@ export async function togglePlan(
     await togglePlanActive(planId, ws.workspaceId, active);
     revalidatePath("/app/settings/plans");
     return { success: true };
-  } catch {
+  } catch (err) {
+    console.error("[togglePlan]", err);
     return { success: false, error: "Failed to update plan." };
   }
 }
