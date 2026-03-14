@@ -8,6 +8,7 @@ import {
   branches,
   workspaceUsers,
   plans,
+  auditLogs,
 } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
@@ -72,15 +73,15 @@ export async function completeOnboarding(data: {
         durationDays: 30,
       });
 
-      logger.info(
-        {
-          action: "complete_onboarding",
-          userId,
-          workspaceId: workspace.id,
-          branchId: branch.id,
-        },
-        "Onboarding completed successfully"
-      );
+      // 5. Audit log (inside transaction for atomicity)
+      await tx.insert(auditLogs).values({
+        workspaceId: workspace.id,
+        userId,
+        action: "COMPLETE_ONBOARDING",
+        entityType: "WORKSPACE",
+        entityId: workspace.id,
+        details: { branchId: branch.id, gymName: data.gymName },
+      });
     });
 
     return { success: true };

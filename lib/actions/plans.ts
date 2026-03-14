@@ -5,6 +5,7 @@ import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
 import { insertPlan, togglePlanActive, getPlans } from "@/lib/dal/plans";
+import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
 
 type ActionResult<T = undefined> = {
@@ -41,10 +42,14 @@ export async function createPlan(data: {
       durationDays: data.durationDays,
     });
 
-    logger.info(
-      { action: "create_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId: plan.id },
-      "New plan created successfully"
-    );
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "CREATE_PLAN",
+      entityType: "PLAN",
+      entityId: plan.id,
+      details: { name: data.name, price: data.price, durationDays: data.durationDays },
+    });
 
     revalidatePath("/app/settings/plans");
     return { success: true };
@@ -75,10 +80,14 @@ export async function togglePlan(
   try {
     await togglePlanActive(planId, ws.workspaceId, active);
 
-    logger.info(
-      { action: "toggle_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId, active },
-      "Plan toggled"
-    );
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "TOGGLE_PLAN",
+      entityType: "PLAN",
+      entityId: planId,
+      details: { active },
+    });
 
     revalidatePath("/app/settings/plans");
     return { success: true };

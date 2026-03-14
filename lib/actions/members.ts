@@ -13,6 +13,7 @@ import {
   getMemberById,
   getMembers,
 } from "@/lib/dal/members";
+import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
 
 type ActionResult<T = undefined> = {
@@ -91,10 +92,14 @@ export async function createMember(data: {
     const upiPn = encodeURIComponent(workspace.name);
     const upiString = `upi://pay?pa=${upiPa}&pn=${upiPn}&am=${plan.price}&cu=INR`;
 
-    logger.info(
-      { action: "create_member", workspaceId: ws.workspaceId, userId: session.user.id, memberId: member.id, transactionId: txn.id },
-      "New member created successfully"
-    );
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "CREATE_MEMBER",
+      entityType: "MEMBER",
+      entityId: member.id,
+      details: { transactionId: txn.id, planId: data.planId, amount: plan.price },
+    });
 
     return {
       success: true,
@@ -139,10 +144,14 @@ export async function markAsPaid(
       return { success: false, error: "Transaction not found." };
     }
 
-    logger.info(
-      { action: "mark_as_paid", workspaceId: ws.workspaceId, userId: session.user.id, transactionId },
-      "Transaction marked as paid"
-    );
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "MARK_AS_PAID",
+      entityType: "TRANSACTION",
+      entityId: transactionId,
+      details: { durationDays },
+    });
 
     revalidatePath("/app/dashboard");
     return { success: true };

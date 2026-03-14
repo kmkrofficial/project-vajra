@@ -1,6 +1,7 @@
 "use server";
 
 import { getMemberByPin } from "@/lib/dal/members";
+import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
 
 type KioskResult =
@@ -35,10 +36,14 @@ export async function processKioskCheckin(
     }
 
     // Member is active — check-in is valid
-    logger.info(
-      { action: "kiosk_checkin", branchId, memberId: member.id },
-      "Kiosk check-in successful"
-    );
+    await insertAuditLog({
+      workspaceId: member.workspaceId,
+      userId: null,
+      action: "KIOSK_CHECKIN",
+      entityType: "MEMBER",
+      entityId: member.id,
+      details: { branchId },
+    });
     return { success: true, memberName: member.name };
   } catch (err) {
     logger.error({ err, action: "kiosk_checkin", branchId }, "Kiosk check-in failed");
