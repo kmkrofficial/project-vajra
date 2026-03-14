@@ -9,6 +9,7 @@ import {
   integer,
   varchar,
   jsonb,
+  numeric,
 } from "drizzle-orm/pg-core";
 
 // ─── Auth Tables (Better-Auth) ──────────────────────────────────────────────
@@ -82,6 +83,8 @@ export const branches = pgTable("branches", {
   name: text("name").notNull(),
   contactPhone: text("contact_phone"),
   kioskPin: varchar("kiosk_pin", { length: 6 }),
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -168,6 +171,52 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Employees & Attendance ─────────────────────────────────────────────────
+
+export const employeeRoleEnum = pgEnum("employee_role", [
+  "manager",
+  "trainer",
+  "receptionist",
+]);
+
+export const employeeStatusEnum = pgEnum("employee_status", [
+  "active",
+  "invited",
+]);
+
+export const employees = pgTable("employees", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  role: employeeRoleEnum("role").notNull().default("receptionist"),
+  status: employeeStatusEnum("status").notNull().default("invited"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const employeeAttendance = pgTable("employee_attendance", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  checkInTime: timestamp("check_in_time").notNull().defaultNow(),
+  checkOutTime: timestamp("check_out_time"),
+  checkInLat: numeric("check_in_lat", { precision: 10, scale: 7 }).notNull(),
+  checkInLng: numeric("check_in_lng", { precision: 10, scale: 7 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // ─── Configuration ──────────────────────────────────────────────────────────
 
 export const configuration = pgTable("configuration", {
@@ -226,6 +275,8 @@ export const gymWorkspaceRelations = relations(gymWorkspaces, ({ many }) => ({
   transactions: many(transactions),
   auditLogs: many(auditLogs),
   configurations: many(configuration),
+  employees: many(employees),
+  employeeAttendance: many(employeeAttendance),
 }));
 
 export const branchRelations = relations(branches, ({ one, many }) => ({
@@ -235,6 +286,8 @@ export const branchRelations = relations(branches, ({ one, many }) => ({
   }),
   assignedUsers: many(workspaceUsers),
   members: many(members),
+  employees: many(employees),
+  attendance: many(employeeAttendance),
 }));
 
 export const workspaceUserRelations = relations(workspaceUsers, ({ one }) => ({
@@ -310,5 +363,36 @@ export const configurationRelations = relations(configuration, ({ one }) => ({
   defaultPlan: one(plans, {
     fields: [configuration.defaultPlanId],
     references: [plans.id],
+  }),
+}));
+
+export const employeeRelations = relations(employees, ({ one, many }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [employees.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  branch: one(branches, {
+    fields: [employees.branchId],
+    references: [branches.id],
+  }),
+  user: one(user, {
+    fields: [employees.userId],
+    references: [user.id],
+  }),
+  attendance: many(employeeAttendance),
+}));
+
+export const employeeAttendanceRelations = relations(employeeAttendance, ({ one }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [employeeAttendance.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  branch: one(branches, {
+    fields: [employeeAttendance.branchId],
+    references: [branches.id],
+  }),
+  employee: one(employees, {
+    fields: [employeeAttendance.employeeId],
+    references: [employees.id],
   }),
 }));

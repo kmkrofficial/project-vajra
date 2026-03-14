@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { MembersView } from "./members-view";
+import { StaffCheckIn } from "@/components/features/staff-check-in";
 
 /** Roles that can see revenue stats and all-branches filter. */
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
@@ -184,6 +185,9 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* ── Staff Check-In Widget (non-admin only) ─────────────── */}
+      {!isAdmin && <StaffCheckIn />}
 
       {/* ── Members view with expiring list ──────────────────────── */}
       <MembersView

@@ -166,3 +166,65 @@ export async function verifyWorkspaceMembership(
     throw err;
   }
 }
+
+/** Create a new branch within a workspace. */
+export async function createBranch(
+  workspaceId: string,
+  data: {
+    name: string;
+    contactPhone?: string | null;
+    latitude?: string | null;
+    longitude?: string | null;
+  }
+) {
+  const start = performance.now();
+  try {
+    const [branch] = await db
+      .insert(branches)
+      .values({
+        workspaceId,
+        name: data.name,
+        contactPhone: data.contactPhone ?? null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+      })
+      .returning();
+
+    logger.debug(
+      { fn: "createBranch", workspaceId, branchId: branch.id, ms: Math.round(performance.now() - start) },
+      "DAL insert complete"
+    );
+    return branch;
+  } catch (err) {
+    logger.error({ err, fn: "createBranch", workspaceId }, "DAL insert failed");
+    throw err;
+  }
+}
+
+/** Get all branches for a workspace with coordinates. */
+export async function getBranches(workspaceId: string) {
+  const start = performance.now();
+  try {
+    const result = await db
+      .select({
+        id: branches.id,
+        name: branches.name,
+        contactPhone: branches.contactPhone,
+        latitude: branches.latitude,
+        longitude: branches.longitude,
+        createdAt: branches.createdAt,
+      })
+      .from(branches)
+      .where(eq(branches.workspaceId, workspaceId))
+      .orderBy(branches.createdAt);
+
+    logger.debug(
+      { fn: "getBranches", workspaceId, count: result.length, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return result;
+  } catch (err) {
+    logger.error({ err, fn: "getBranches", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}
