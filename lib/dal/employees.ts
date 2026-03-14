@@ -1,6 +1,6 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { employees, employeeAttendance, branches } from "@/lib/db/schema";
+import { employees, branches } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
 /** Get all employees for a workspace. */
@@ -30,35 +30,6 @@ export async function getEmployees(workspaceId: string) {
     return result;
   } catch (err) {
     logger.error({ err, fn: "getEmployees", workspaceId }, "DAL query failed");
-    throw err;
-  }
-}
-
-/** Get attendance records for a specific employee. */
-export async function getEmployeeAttendance(
-  workspaceId: string,
-  employeeId: string
-) {
-  const start = performance.now();
-  try {
-    const result = await db
-      .select()
-      .from(employeeAttendance)
-      .where(
-        and(
-          eq(employeeAttendance.workspaceId, workspaceId),
-          eq(employeeAttendance.employeeId, employeeId)
-        )
-      )
-      .orderBy(desc(employeeAttendance.checkInTime));
-
-    logger.debug(
-      { fn: "getEmployeeAttendance", workspaceId, employeeId, count: result.length, ms: Math.round(performance.now() - start) },
-      "DAL query complete"
-    );
-    return result;
-  } catch (err) {
-    logger.error({ err, fn: "getEmployeeAttendance", workspaceId, employeeId }, "DAL query failed");
     throw err;
   }
 }
@@ -97,39 +68,7 @@ export async function insertEmployee(data: {
   }
 }
 
-/** Insert an attendance record (check-in). */
-export async function insertAttendance(data: {
-  workspaceId: string;
-  branchId: string;
-  employeeId: string;
-  checkInLat: string;
-  checkInLng: string;
-}) {
-  const start = performance.now();
-  try {
-    const [record] = await db
-      .insert(employeeAttendance)
-      .values({
-        workspaceId: data.workspaceId,
-        branchId: data.branchId,
-        employeeId: data.employeeId,
-        checkInLat: data.checkInLat,
-        checkInLng: data.checkInLng,
-      })
-      .returning();
-
-    logger.debug(
-      { fn: "insertAttendance", workspaceId: data.workspaceId, recordId: record.id, ms: Math.round(performance.now() - start) },
-      "DAL insert complete"
-    );
-    return record;
-  } catch (err) {
-    logger.error({ err, fn: "insertAttendance", workspaceId: data.workspaceId }, "DAL insert failed");
-    throw err;
-  }
-}
-
-/** Get an employee by their linked user ID (for check-in lookup). */
+/** Get an employee by their linked user ID. */
 export async function getEmployeeByUserId(
   workspaceId: string,
   userId: string
@@ -143,11 +82,8 @@ export async function getEmployeeByUserId(
         name: employees.name,
         role: employees.role,
         status: employees.status,
-        branchLat: branches.latitude,
-        branchLng: branches.longitude,
       })
       .from(employees)
-      .leftJoin(branches, eq(employees.branchId, branches.id))
       .where(
         and(
           eq(employees.workspaceId, workspaceId),
