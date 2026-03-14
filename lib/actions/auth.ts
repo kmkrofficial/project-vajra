@@ -11,6 +11,13 @@ type ActionResult = {
   error?: string;
 };
 
+/**
+ * Register a new user account via Better-Auth email/password.
+ * @param email - The user's email address.
+ * @param password - Plain-text password (hashed by Better-Auth internally).
+ * @param name - Display name.
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
 export async function signUpUser(
   email: string,
   password: string,
@@ -31,6 +38,13 @@ export async function signUpUser(
   }
 }
 
+/**
+ * Authenticate an existing user and create a server-side session.
+ * The session cookie is set automatically by Better-Auth via the `nextCookies()` plugin.
+ * @param email - The user's email address.
+ * @param password - Plain-text password to verify.
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
 export async function signInUser(
   email: string,
   password: string
@@ -51,6 +65,10 @@ export async function signInUser(
   }
 }
 
+/**
+ * Sign out the current user, destroy the session, and redirect to `/login`.
+ * Errors are logged but never thrown — the redirect always happens.
+ */
 export async function signOutUser(): Promise<void> {
   try {
     await auth.api.signOut({
@@ -63,6 +81,10 @@ export async function signOutUser(): Promise<void> {
   redirect("/login");
 }
 
+/**
+ * Retrieve the current authenticated session from the request cookies.
+ * @returns The Better-Auth session object, or `null` if not authenticated.
+ */
 export async function getSession() {
   const session = await auth.api.getSession({
     headers: await headers(),

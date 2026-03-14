@@ -28,6 +28,15 @@ function generatePin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+/**
+ * Create a new gym member with PENDING_PAYMENT status and generate a UPI payment deep-link.
+ *
+ * Flow: validate input → verify workspace membership → look up plan → create member
+ * → create pending transaction → build `upi://pay` string → audit log.
+ *
+ * @param data - Member details including name, phone, optional email/kioskPin, planId, and branchId.
+ * @returns `{ success, data: { memberId, transactionId, upiString, amount } }` on success.
+ */
 export async function createMember(data: {
   name: string;
   phone: string;
@@ -128,6 +137,13 @@ export async function createMember(data: {
   }
 }
 
+/**
+ * Mark a pending transaction as paid, activate the member, and compute the expiry date.
+ *
+ * @param transactionId - UUID of the pending transaction.
+ * @param durationDays - The plan duration in days (used to compute `expiry_date` from today).
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
 export async function markAsPaid(
   transactionId: string,
   durationDays: number
@@ -173,6 +189,10 @@ export async function markAsPaid(
   }
 }
 
+/**
+ * Fetch all members in the current user's active workspace.
+ * @returns Array of member records, or an empty array if unauthenticated / no workspace.
+ */
 export async function fetchMembers() {
   const session = await getSession();
   if (!session?.user) return [];
@@ -183,6 +203,11 @@ export async function fetchMembers() {
   return getMembers(ws.workspaceId);
 }
 
+/**
+ * Fetch a single member by ID within the current workspace.
+ * @param memberId - UUID of the member.
+ * @returns The member record, or `null` if not found / unauthorized.
+ */
 export async function fetchMember(memberId: string) {
   const session = await getSession();
   if (!session?.user) return null;

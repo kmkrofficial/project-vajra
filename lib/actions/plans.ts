@@ -14,6 +14,13 @@ type ActionResult<T = undefined> = {
   data?: T;
 };
 
+/**
+ * Create a new subscription plan.
+ * **RBAC:** SUPER_ADMIN or MANAGER only.
+ *
+ * @param data - Plan details: `name`, `price` (INR), `durationDays`.
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
 export async function createPlan(data: {
   name: string;
   price: number;
@@ -59,6 +66,14 @@ export async function createPlan(data: {
   }
 }
 
+/**
+ * Enable or disable an existing plan.
+ * **RBAC:** SUPER_ADMIN or MANAGER only.
+ *
+ * @param planId - UUID of the plan to toggle.
+ * @param active - `true` to enable, `false` to disable.
+ * @returns `{ success: true }` on success, or `{ success: false, error }` on failure.
+ */
 export async function togglePlan(
   planId: string,
   active: boolean
@@ -97,6 +112,10 @@ export async function togglePlan(
   }
 }
 
+/**
+ * Fetch all plans (active and inactive) for the current workspace.
+ * @returns Array of plan records, or an empty array if unauthenticated / no workspace.
+ */
 export async function fetchPlans() {
   const session = await getSession();
   if (!session?.user) return [];
