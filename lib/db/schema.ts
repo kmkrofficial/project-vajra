@@ -6,6 +6,8 @@ import {
   boolean,
   timestamp,
   uuid,
+  integer,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 // ─── Auth Tables (Better-Auth) ──────────────────────────────────────────────
@@ -103,6 +105,67 @@ export const workspaceUsers = pgTable("workspace_users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Plans, Members & Transactions ──────────────────────────────────────────
+
+export const plans = pgTable("plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  durationDays: integer("duration_days").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const memberStatusEnum = pgEnum("member_status", [
+  "ACTIVE",
+  "EXPIRED",
+  "PENDING_PAYMENT",
+]);
+
+export const members = pgTable("members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  checkinPin: varchar("checkin_pin", { length: 4 }).notNull(),
+  status: memberStatusEnum("status").notNull().default("PENDING_PAYMENT"),
+  expiryDate: timestamp("expiry_date"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const paymentMethodEnum = pgEnum("payment_method", ["UPI", "CASH"]);
+
+export const transactionStatusEnum = pgEnum("transaction_status", [
+  "COMPLETED",
+  "PENDING",
+]);
+
+export const transactions = pgTable("transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id")
+    .notNull()
+    .references(() => members.id, { onDelete: "cascade" }),
+  planId: uuid("plan_id")
+    .notNull()
+    .references(() => plans.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("UPI"),
+  status: transactionStatusEnum("status").notNull().default("PENDING"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // ─── Relations ──────────────────────────────────────────────────────────────
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -122,6 +185,9 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const gymWorkspaceRelations = relations(gymWorkspaces, ({ many }) => ({
   branches: many(branches),
   workspaceUsers: many(workspaceUsers),
+  plans: many(plans),
+  members: many(members),
+  transactions: many(transactions),
 }));
 
 export const branchRelations = relations(branches, ({ one, many }) => ({
@@ -130,6 +196,7 @@ export const branchRelations = relations(branches, ({ one, many }) => ({
     references: [gymWorkspaces.id],
   }),
   assignedUsers: many(workspaceUsers),
+  members: many(members),
 }));
 
 export const workspaceUserRelations = relations(workspaceUsers, ({ one }) => ({
@@ -144,5 +211,40 @@ export const workspaceUserRelations = relations(workspaceUsers, ({ one }) => ({
   assignedBranch: one(branches, {
     fields: [workspaceUsers.assignedBranchId],
     references: [branches.id],
+  }),
+}));
+
+export const planRelations = relations(plans, ({ one, many }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [plans.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const memberRelations = relations(members, ({ one, many }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [members.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  branch: one(branches, {
+    fields: [members.branchId],
+    references: [branches.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const transactionRelations = relations(transactions, ({ one }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [transactions.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  member: one(members, {
+    fields: [transactions.memberId],
+    references: [members.id],
+  }),
+  plan: one(plans, {
+    fields: [transactions.planId],
+    references: [plans.id],
   }),
 }));
