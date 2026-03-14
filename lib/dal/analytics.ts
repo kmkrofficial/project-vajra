@@ -144,17 +144,129 @@ export async function getRevenueByMonth(
   }
 }
 
+/** Count members who churned (expired in the last 30 days without renewal). */
+export async function getChurnCount(workspaceId: string): Promise<number> {
+  const start = performance.now();
+  const now = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.workspaceId, workspaceId),
+          eq(members.status, "EXPIRED"),
+          gte(members.expiryDate, thirtyDaysAgo),
+          lte(members.expiryDate, now)
+        )
+      );
+
+    logger.debug(
+      { fn: "getChurnCount", workspaceId, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return row?.count ?? 0;
+  } catch (err) {
+    logger.error({ err, fn: "getChurnCount", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/** Revenue sum for a specific date range. */
+async function getRevenueForPeriod(
+  workspaceId: string,
+  from: Date,
+  to: Date
+): Promise<number> {
+  const [row] = await db
+    .select({
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.workspaceId, workspaceId),
+        eq(transactions.status, "COMPLETED"),
+        gte(transactions.createdAt, from),
+        lte(transactions.createdAt, to)
+      )
+    );
+  return Number(row?.total ?? 0);
+}
+
+/** Month-over-month revenue growth percentage. Returns null if no previous data. */
+export async function getMoMGrowth(workspaceId: string): Promise<number | null> {
+  const start = performance.now();
+  const now = new Date();
+  const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  try {
+    const [current, previous] = await Promise.all([
+      getRevenueForPeriod(workspaceId, firstOfThisMonth, now),
+      getRevenueForPeriod(workspaceId, firstOfLastMonth, firstOfThisMonth),
+    ]);
+
+    logger.debug(
+      { fn: "getMoMGrowth", workspaceId, current, previous, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+
+    if (previous === 0) return current > 0 ? 100 : null;
+    return Math.round(((current - previous) / previous) * 100);
+  } catch (err) {
+    logger.error({ err, fn: "getMoMGrowth", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/** Week-over-week revenue growth percentage. Returns null if no previous data. */
+export async function getWoWGrowth(workspaceId: string): Promise<number | null> {
+  const start = performance.now();
+  const now = new Date();
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(now.getDate() - 7);
+
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(now.getDate() - 14);
+
+  try {
+    const [current, previous] = await Promise.all([
+      getRevenueForPeriod(workspaceId, sevenDaysAgo, now),
+      getRevenueForPeriod(workspaceId, fourteenDaysAgo, sevenDaysAgo),
+    ]);
+
+    logger.debug(
+      { fn: "getWoWGrowth", workspaceId, current, previous, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+
+    if (previous === 0) return current > 0 ? 100 : null;
+    return Math.round(((current - previous) / previous) * 100);
+  } catch (err) {
+    logger.error({ err, fn: "getWoWGrowth", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}
+
 /**
  * Get a full analytics snapshot for the workspace.
  * Runs queries in parallel for fast loading.
  */
 export async function getWorkspaceAnalytics(workspaceId: string) {
-  const [activeMembers, monthlyRevenue, expiringIn7Days, revenueByMonth] =
+  const [activeMembers, monthlyRevenue, expiringIn7Days, revenueByMonth, churnCount, momGrowth, wowGrowth] =
     await Promise.all([
       getActiveMemberCount(workspaceId),
       getMonthlyRevenue(workspaceId),
       getExpiringMemberCount(workspaceId, 7),
       getRevenueByMonth(workspaceId, 6),
+      getChurnCount(workspaceId),
+      getMoMGrowth(workspaceId),
+      getWoWGrowth(workspaceId),
     ]);
 
   return {
@@ -162,5 +274,8 @@ export async function getWorkspaceAnalytics(workspaceId: string) {
     monthlyRevenue,
     expiringIn7Days,
     revenueByMonth,
+    churnCount,
+    momGrowth,
+    wowGrowth,
   };
 }

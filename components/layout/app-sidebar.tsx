@@ -13,6 +13,7 @@ import {
   LogOut,
   ClipboardList,
   UserCog,
+  FileText,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { signOutUser } from "@/lib/actions/auth";
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Members", href: "/app/members", icon: Users },
   { label: "Employees", href: "/app/employees", icon: UserCog, adminOnly: true },
   { label: "Analytics", href: "/app/analytics", icon: BarChart3, adminOnly: true },
+  { label: "Audit Logs", href: "/app/audit-logs", icon: FileText, adminOnly: true },
   { label: "Kiosk", href: "/kiosk", icon: ScanLine },
   { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
   { label: "Manage Plans", href: "/app/settings/plans", icon: ClipboardList, adminOnly: true },
