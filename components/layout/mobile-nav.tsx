@@ -45,7 +45,7 @@ export function MobileNav() {
                 : "text-muted-foreground active:text-foreground"
             )}
           >
-            <tab.icon className="size-5" />
+            <tab.icon className="size-5" strokeWidth={1.5} />
             {tab.label}
           </Link>
         );

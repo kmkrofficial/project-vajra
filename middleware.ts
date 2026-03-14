@@ -3,6 +3,9 @@ import { getSessionCookie } from "better-auth/cookies";
 
 const PUBLIC_ROUTES = new Set(["/login", "/signup"]);
 
+/** Routes that require auth but NOT a workspace cookie. */
+const NO_WORKSPACE_ROUTES = new Set(["/onboarding", "/workspaces"]);
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 

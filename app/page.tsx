@@ -55,8 +55,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <Dumbbell className="size-5 text-primary" />
-            <span className="text-lg font-bold">Vajra</span>
+            <Dumbbell className="size-5 text-primary" strokeWidth={1.5} />
+            <span className="text-lg font-bold tracking-tight">Vajra</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -80,7 +80,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-20 pb-16 text-center md:pt-28 md:pb-20">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-          <Dumbbell className="size-3" />
+          <Dumbbell className="size-3" strokeWidth={1.5} />
           Built for independent gym owners
         </div>
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight md:text-5xl lg:text-6xl">
@@ -98,7 +98,7 @@ export default function LandingPage() {
             data-testid="hero-cta"
           >
             Start for Free
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-4" strokeWidth={1.5} />
           </Link>
           <Link
             href="/login"
@@ -127,7 +127,7 @@ export default function LandingPage() {
               className="rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/40"
             >
               <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-2.5">
-                <feature.icon className="size-5 text-primary" />
+                <feature.icon className="size-5 text-primary" strokeWidth={1.5} />
               </div>
               <h3 className="mb-2 text-base font-semibold">{feature.title}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -153,7 +153,7 @@ export default function LandingPage() {
             data-testid="bottom-cta"
           >
             Create Your Gym Account
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-4" strokeWidth={1.5} />
           </Link>
         </div>
       </section>
@@ -162,7 +162,7 @@ export default function LandingPage() {
       <footer className="mt-auto border-t border-border py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 sm:flex-row">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Dumbbell className="size-4" />
+            <Dumbbell className="size-4" strokeWidth={1.5} />
             <span>Vajra — Gym Operations Platform</span>
           </div>
           <p className="text-xs text-muted-foreground">

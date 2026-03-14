@@ -9,6 +9,11 @@ export default async function WorkspacesPage() {
 
   const workspaces = await getUserWorkspaces(session.user.id);
 
+  // Users with no workspaces must complete onboarding first
+  if (workspaces.length === 0) {
+    redirect("/onboarding");
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-lg space-y-6">

@@ -59,8 +59,8 @@ export function TopBar({
     >
       {/* Left: Logo (mobile only) */}
       <div className="flex items-center gap-2 md:hidden">
-        <Dumbbell className="size-5 text-primary" />
-        <span className="text-base font-bold text-foreground">Vajra</span>
+        <Dumbbell className="size-5 text-primary" strokeWidth={1.5} />
+        <span className="text-base font-bold tracking-tight text-foreground">Vajra</span>
       </div>
 
       {/* Center: Workspace switcher */}
@@ -72,7 +72,7 @@ export function TopBar({
             data-testid="workspace-switcher"
           >
             {gymName}
-            <ChevronDown className="size-3.5 text-muted-foreground" />
+            <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" sideOffset={8}>
             <DropdownMenuLabel>Switch Gym</DropdownMenuLabel>
@@ -108,7 +108,7 @@ export function TopBar({
           <DropdownMenuLabel>{userName}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-            <LogOut className="size-4" />
+            <LogOut className="size-4" strokeWidth={1.5} />
             Log out
           </DropdownMenuItem>
         </DropdownMenuContent>

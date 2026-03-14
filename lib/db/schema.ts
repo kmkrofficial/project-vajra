@@ -8,6 +8,7 @@ import {
   uuid,
   integer,
   varchar,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // ─── Auth Tables (Better-Auth) ──────────────────────────────────────────────
@@ -166,6 +167,21 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Audit Logs ─────────────────────────────────────────────────────────────
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  action: varchar("action", { length: 100 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id", { length: 255 }),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // ─── Relations ──────────────────────────────────────────────────────────────
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -188,6 +204,7 @@ export const gymWorkspaceRelations = relations(gymWorkspaces, ({ many }) => ({
   plans: many(plans),
   members: many(members),
   transactions: many(transactions),
+  auditLogs: many(auditLogs),
 }));
 
 export const branchRelations = relations(branches, ({ one, many }) => ({
@@ -246,5 +263,16 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
   plan: one(plans, {
     fields: [transactions.planId],
     references: [plans.id],
+  }),
+}));
+
+export const auditLogRelations = relations(auditLogs, ({ one }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [auditLogs.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  user: one(user, {
+    fields: [auditLogs.userId],
+    references: [user.id],
   }),
 }));

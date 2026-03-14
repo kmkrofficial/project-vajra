@@ -46,8 +46,8 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <Dumbbell className="size-5 text-primary" />
-        <span className="text-lg font-bold text-foreground">Vajra</span>
+        <Dumbbell className="size-5 text-primary" strokeWidth={1.5} />
+        <span className="text-lg font-bold tracking-tight text-foreground">Vajra</span>
       </div>
 
       {/* Nav links */}
@@ -66,7 +66,7 @@ export function AppSidebar() {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <item.icon className="size-4" />
+              <item.icon className="size-4" strokeWidth={1.5} />
               {item.label}
             </Link>
           );
