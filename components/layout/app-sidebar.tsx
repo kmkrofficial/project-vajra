@@ -11,8 +11,11 @@ import {
   ScanLine,
   KeyRound,
   BarChart3,
+  LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
+import { signOutUser } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "MANAGER"];
@@ -31,17 +34,23 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Kiosk", href: "/kiosk", icon: ScanLine },
   { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
   { label: "Kiosk PIN", href: "/app/settings/kiosk", icon: KeyRound, adminOnly: true },
-  { label: "Settings", href: "/app/settings/plans", icon: Settings, adminOnly: true },
+  { label: "Manage Plans", href: "/app/settings/plans", icon: ClipboardList, adminOnly: true },
+  { label: "Settings", href: "/app/settings", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { role } = useWorkspace();
+  const { role, clearWorkspace } = useWorkspace();
   const isAdmin = role ? ADMIN_ROLES.includes(role) : false;
 
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.adminOnly || isAdmin
   );
+
+  async function handleLogout() {
+    clearWorkspace();
+    await signOutUser();
+  }
 
   return (
     <aside
@@ -58,7 +67,9 @@ export function AppSidebar() {
       <nav className="flex-1 space-y-1 p-3">
         {visibleItems.map((item) => {
           const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+            item.href === "/app/settings"
+              ? pathname === "/app/settings"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
@@ -76,6 +87,18 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* Logout button pinned to bottom */}
+      <div className="border-t border-border p-3">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          data-testid="sidebar-logout"
+        >
+          <LogOut className="size-4" strokeWidth={1.5} />
+          Log Out
+        </button>
+      </div>
     </aside>
   );
 }

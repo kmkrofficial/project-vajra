@@ -95,9 +95,9 @@ export async function createMember(data: {
       paymentMethod: "UPI",
     });
 
-    // Build UPI deep link string
+    // Build strict raw UPI intent string — no encoding, no expiry params
     const upiPa = workspace.ownerUpiId || "";
-    const upiPn = encodeURIComponent(workspace.name);
+    const upiPn = workspace.name;
     const upiString = `upi://pay?pa=${upiPa}&pn=${upiPn}&am=${plan.price}&cu=INR`;
 
     await insertAuditLog({

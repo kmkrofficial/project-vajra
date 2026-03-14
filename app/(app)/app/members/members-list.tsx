@@ -143,33 +143,31 @@ export function MembersList({
                   {member.status.replace("_", " ")}
                 </Badge>
 
-                {/* WhatsApp button — "Remind" for expiring, "Message" for all others */}
-                <a
-                  href={generateWhatsAppLink(
-                    { name: member.name, phone: member.phone },
-                    ownerUpiId ?? "",
-                    cheapestPlan?.price ?? 0,
-                    gymName
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                {/* WhatsApp button — opens in new tab via window.open */}
+                <Button
+                  size="sm"
+                  className={
+                    expiring
+                      ? "gap-1 bg-green-600 text-white hover:bg-green-700"
+                      : "gap-1"
+                  }
+                  variant={expiring ? "default" : "outline"}
                   data-testid={`wa-msg-${member.id}`}
+                  onClick={() => {
+                    const url = generateWhatsAppLink(
+                      { name: member.name, phone: member.phone },
+                      ownerUpiId ?? "",
+                      cheapestPlan?.price ?? 0,
+                      gymName
+                    );
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
                 >
-                  <Button
-                    size="sm"
-                    className={
-                      expiring
-                        ? "gap-1 bg-green-600 text-white hover:bg-green-700"
-                        : "gap-1"
-                    }
-                    variant={expiring ? "default" : "outline"}
-                  >
-                    <MessageCircle className="size-3.5" strokeWidth={1.5} />
-                    <span className="hidden sm:inline">
-                      {expiring ? "Remind" : "Message"}
-                    </span>
-                  </Button>
-                </a>
+                  <MessageCircle className="size-3.5" strokeWidth={1.5} />
+                  <span className="hidden sm:inline">
+                    {expiring ? "Remind" : "Message"}
+                  </span>
+                </Button>
               </div>
             );
           })}

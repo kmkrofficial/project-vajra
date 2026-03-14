@@ -42,7 +42,7 @@ export function generateWhatsAppLink(
 ): string {
   const phone = formatPhone(member.phone);
 
-  const upiLink = `upi://pay?pa=${encodeURIComponent(ownerUpi)}&pn=${encodeURIComponent(gymName)}&am=${planPrice}`;
+  const upiLink = `upi://pay?pa=${ownerUpi}&pn=${gymName}&am=${planPrice}&cu=INR`;
   const message = `Hi ${member.name}, your membership at ${gymName} expires soon. Renew via UPI: ${upiLink}`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
