@@ -1,6 +1,7 @@
 "use server";
 
 import { getMemberByPin } from "@/lib/dal/members";
+import { logger } from "@/lib/logger";
 
 type KioskResult =
   | { success: true; memberName: string }
@@ -34,9 +35,13 @@ export async function processKioskCheckin(
     }
 
     // Member is active — check-in is valid
+    logger.info(
+      { action: "kiosk_checkin", branchId, memberId: member.id },
+      "Kiosk check-in successful"
+    );
     return { success: true, memberName: member.name };
   } catch (err) {
-    console.error("[Kiosk Checkin Error]", err);
+    logger.error({ err, action: "kiosk_checkin", branchId }, "Kiosk check-in failed");
     return { success: false, error: "Check-in failed. Please try again." };
   }
 }

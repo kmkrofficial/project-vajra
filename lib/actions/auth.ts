@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APIError } from "better-auth/api";
+import { logger } from "@/lib/logger";
 
 type ActionResult = {
   success: boolean;
@@ -19,8 +20,10 @@ export async function signUpUser(
     await auth.api.signUpEmail({
       body: { email, password, name },
     });
+    logger.info({ action: "sign_up", email }, "User signed up successfully");
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, action: "sign_up", email }, "Failed to sign up user");
     if (error instanceof APIError) {
       return { success: false, error: error.message };
     }
@@ -37,8 +40,10 @@ export async function signInUser(
       body: { email, password },
       headers: await headers(),
     });
+    logger.info({ action: "sign_in", email }, "User signed in successfully");
     return { success: true };
   } catch (error) {
+    logger.error({ err: error, action: "sign_in", email }, "Failed to sign in user");
     if (error instanceof APIError) {
       return { success: false, error: error.message };
     }
@@ -51,8 +56,9 @@ export async function signOutUser(): Promise<void> {
     await auth.api.signOut({
       headers: await headers(),
     });
-  } catch {
-    // Silently handle signout errors — user is redirected regardless.
+    logger.info({ action: "sign_out" }, "User signed out");
+  } catch (error) {
+    logger.error({ err: error, action: "sign_out" }, "Sign out error (non-blocking)");
   }
   redirect("/login");
 }

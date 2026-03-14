@@ -1,34 +1,60 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { plans } from "@/lib/db/schema";
+import { logger } from "@/lib/logger";
 
 /** Get all plans for a workspace. */
 export async function getPlans(workspaceId: string) {
-  return db
-    .select()
-    .from(plans)
-    .where(eq(plans.workspaceId, workspaceId))
-    .orderBy(plans.createdAt);
+  const start = performance.now();
+  try {
+    const result = await db
+      .select()
+      .from(plans)
+      .where(eq(plans.workspaceId, workspaceId))
+      .orderBy(plans.createdAt);
+
+    logger.debug({ fn: "getPlans", workspaceId, count: result.length, ms: Math.round(performance.now() - start) }, "DAL query complete");
+    return result;
+  } catch (err) {
+    logger.error({ err, fn: "getPlans", workspaceId }, "DAL query failed");
+    throw err;
+  }
 }
 
 /** Get only active plans for a workspace. */
 export async function getActivePlans(workspaceId: string) {
-  return db
-    .select()
-    .from(plans)
-    .where(and(eq(plans.workspaceId, workspaceId), eq(plans.active, true)))
-    .orderBy(plans.createdAt);
+  const start = performance.now();
+  try {
+    const result = await db
+      .select()
+      .from(plans)
+      .where(and(eq(plans.workspaceId, workspaceId), eq(plans.active, true)))
+      .orderBy(plans.createdAt);
+
+    logger.debug({ fn: "getActivePlans", workspaceId, count: result.length, ms: Math.round(performance.now() - start) }, "DAL query complete");
+    return result;
+  } catch (err) {
+    logger.error({ err, fn: "getActivePlans", workspaceId }, "DAL query failed");
+    throw err;
+  }
 }
 
 /** Get a single plan by ID, scoped to workspace. */
 export async function getPlanById(planId: string, workspaceId: string) {
-  const [plan] = await db
-    .select()
-    .from(plans)
-    .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
-    .limit(1);
+  const start = performance.now();
+  try {
+    const [plan] = await db
+      .select()
+      .from(plans)
+      .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
+      .limit(1);
 
-  return plan ?? null;
+    logger.debug({ fn: "getPlanById", workspaceId, planId, found: !!plan, ms: Math.round(performance.now() - start) }, "DAL query complete");
+    return plan ?? null;
+  } catch (err) {
+    logger.error({ err, fn: "getPlanById", workspaceId, planId }, "DAL query failed");
+    throw err;
+  }
 }
 
 /** Insert a new plan. */
@@ -38,8 +64,15 @@ export async function insertPlan(data: {
   price: number;
   durationDays: number;
 }) {
-  const [plan] = await db.insert(plans).values(data).returning();
-  return plan;
+  const start = performance.now();
+  try {
+    const [plan] = await db.insert(plans).values(data).returning();
+    logger.debug({ fn: "insertPlan", workspaceId: data.workspaceId, planId: plan.id, ms: Math.round(performance.now() - start) }, "DAL insert complete");
+    return plan;
+  } catch (err) {
+    logger.error({ err, fn: "insertPlan", workspaceId: data.workspaceId }, "DAL insert failed");
+    throw err;
+  }
 }
 
 /** Toggle a plan's active state. */
@@ -48,11 +81,18 @@ export async function togglePlanActive(
   workspaceId: string,
   active: boolean
 ) {
-  const [updated] = await db
-    .update(plans)
-    .set({ active })
-    .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
-    .returning();
+  const start = performance.now();
+  try {
+    const [updated] = await db
+      .update(plans)
+      .set({ active })
+      .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
+      .returning();
 
-  return updated ?? null;
+    logger.debug({ fn: "togglePlanActive", workspaceId, planId, active, ms: Math.round(performance.now() - start) }, "DAL update complete");
+    return updated ?? null;
+  } catch (err) {
+    logger.error({ err, fn: "togglePlanActive", workspaceId, planId }, "DAL update failed");
+    throw err;
+  }
 }

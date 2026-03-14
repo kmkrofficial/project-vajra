@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { logClientError } from "@/lib/actions/log-client-error";
 
 /**
  * Route-level error boundary.
@@ -14,10 +16,16 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const pathname = usePathname();
+
   useEffect(() => {
-    // Log to browser console so Coolify Docker logs can capture it
-    console.error("[Vajra Error Boundary]", error);
-  }, [error]);
+    logClientError({
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+      pathname,
+    });
+  }, [error, pathname]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">

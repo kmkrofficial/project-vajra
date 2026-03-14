@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { logClientError } from "@/lib/actions/log-client-error";
 
 /**
  * Global error boundary — catches errors in the root layout itself.
@@ -15,7 +16,11 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[Vajra Global Error]", error);
+    logClientError({
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+    });
   }, [error]);
 
   return (

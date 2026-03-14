@@ -5,6 +5,7 @@ import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
 import { insertPlan, togglePlanActive, getPlans } from "@/lib/dal/plans";
+import { logger } from "@/lib/logger";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -33,17 +34,22 @@ export async function createPlan(data: {
   }
 
   try {
-    await insertPlan({
+    const plan = await insertPlan({
       workspaceId: ws.workspaceId,
       name: data.name,
       price: data.price,
       durationDays: data.durationDays,
     });
 
+    logger.info(
+      { action: "create_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId: plan.id },
+      "New plan created successfully"
+    );
+
     revalidatePath("/app/settings/plans");
     return { success: true };
   } catch (err) {
-    console.error("[createPlan]", err);
+    logger.error({ err, action: "create_plan", workspaceId: ws.workspaceId, userId: session.user.id }, "Failed to create plan");
     return { success: false, error: "Failed to create plan." };
   }
 }
@@ -68,10 +74,16 @@ export async function togglePlan(
 
   try {
     await togglePlanActive(planId, ws.workspaceId, active);
+
+    logger.info(
+      { action: "toggle_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId, active },
+      "Plan toggled"
+    );
+
     revalidatePath("/app/settings/plans");
     return { success: true };
   } catch (err) {
-    console.error("[togglePlan]", err);
+    logger.error({ err, action: "toggle_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId }, "Failed to toggle plan");
     return { success: false, error: "Failed to update plan." };
   }
 }

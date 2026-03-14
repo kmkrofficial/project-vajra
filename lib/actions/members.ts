@@ -13,6 +13,7 @@ import {
   getMemberById,
   getMembers,
 } from "@/lib/dal/members";
+import { logger } from "@/lib/logger";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -90,6 +91,11 @@ export async function createMember(data: {
     const upiPn = encodeURIComponent(workspace.name);
     const upiString = `upi://pay?pa=${upiPa}&pn=${upiPn}&am=${plan.price}&cu=INR`;
 
+    logger.info(
+      { action: "create_member", workspaceId: ws.workspaceId, userId: session.user.id, memberId: member.id, transactionId: txn.id },
+      "New member created successfully"
+    );
+
     return {
       success: true,
       data: {
@@ -100,7 +106,7 @@ export async function createMember(data: {
       },
     };
   } catch (err) {
-    console.error("[createMember]", err);
+    logger.error({ err, action: "create_member", workspaceId: ws.workspaceId, userId: session.user.id }, "Failed to create member");
     return { success: false, error: "Failed to create member." };
   }
 }
@@ -133,10 +139,15 @@ export async function markAsPaid(
       return { success: false, error: "Transaction not found." };
     }
 
+    logger.info(
+      { action: "mark_as_paid", workspaceId: ws.workspaceId, userId: session.user.id, transactionId },
+      "Transaction marked as paid"
+    );
+
     revalidatePath("/app/dashboard");
     return { success: true };
   } catch (err) {
-    console.error("[markAsPaid]", err);
+    logger.error({ err, action: "mark_as_paid", workspaceId: ws.workspaceId, userId: session.user.id, transactionId }, "Failed to complete payment");
     return { success: false, error: "Failed to complete payment." };
   }
 }
