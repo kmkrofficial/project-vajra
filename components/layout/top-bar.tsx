@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Dumbbell, LogOut, ChevronDown } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Dumbbell, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
 import { signOutUser } from "@/lib/actions/auth";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function TopBar({
 }) {
   const router = useRouter();
   const { activeWorkspaceId, setWorkspace, clearWorkspace } = useWorkspace();
+  const { setTheme, theme } = useTheme();
   const initials = userName
     .split(" ")
     .map((n) => n[0])
@@ -94,25 +96,52 @@ export function TopBar({
         <span className="text-sm font-medium text-foreground">{gymName}</span>
       )}
 
-      {/* Right: User menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors"
-          data-testid="user-menu"
-        >
-          <Avatar size="sm">
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={8}>
-          <DropdownMenuLabel>{userName}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-            <LogOut className="size-4" strokeWidth={1.5} />
-            Log out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Right: Theme toggle + User menu */}
+      <div className="flex items-center gap-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="flex items-center justify-center rounded-lg p-2 hover:bg-muted transition-colors"
+            data-testid="theme-toggle"
+          >
+            <Sun className="size-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" strokeWidth={1.5} />
+            <Moon className="absolute size-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" strokeWidth={1.5} />
+            <span className="sr-only">Toggle theme</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8}>
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <Sun className="size-4" strokeWidth={1.5} />
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon className="size-4" strokeWidth={1.5} />
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Monitor className="size-4" strokeWidth={1.5} />
+              System
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors"
+            data-testid="user-menu"
+          >
+            <Avatar size="sm">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8}>
+            <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+              <LogOut className="size-4" strokeWidth={1.5} />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

@@ -7,6 +7,59 @@ import {
 } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
+/** Get the kiosk PIN for a specific branch. Returns null if not set. */
+export async function getBranchKioskPin(
+  branchId: string,
+  workspaceId: string
+): Promise<string | null> {
+  const start = performance.now();
+  try {
+    const [row] = await db
+      .select({ kioskPin: branches.kioskPin })
+      .from(branches)
+      .where(
+        and(eq(branches.id, branchId), eq(branches.workspaceId, workspaceId))
+      )
+      .limit(1);
+
+    logger.debug(
+      { fn: "getBranchKioskPin", branchId, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return row?.kioskPin ?? null;
+  } catch (err) {
+    logger.error({ err, fn: "getBranchKioskPin", branchId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/** Set/update the kiosk PIN for a branch. */
+export async function setBranchKioskPin(
+  branchId: string,
+  workspaceId: string,
+  pin: string
+): Promise<boolean> {
+  const start = performance.now();
+  try {
+    const [row] = await db
+      .update(branches)
+      .set({ kioskPin: pin })
+      .where(
+        and(eq(branches.id, branchId), eq(branches.workspaceId, workspaceId))
+      )
+      .returning({ id: branches.id });
+
+    logger.debug(
+      { fn: "setBranchKioskPin", branchId, ms: Math.round(performance.now() - start) },
+      "DAL update complete"
+    );
+    return !!row;
+  } catch (err) {
+    logger.error({ err, fn: "setBranchKioskPin", branchId }, "DAL update failed");
+    throw err;
+  }
+}
+
 /** Returns all workspaces the given user belongs to, with their role. */
 export async function getUserWorkspaces(userId: string) {
   const start = performance.now();

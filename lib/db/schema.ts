@@ -81,6 +81,7 @@ export const branches = pgTable("branches", {
     .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   contactPhone: text("contact_phone"),
+  kioskPin: varchar("kiosk_pin", { length: 6 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

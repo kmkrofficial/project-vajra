@@ -143,28 +143,33 @@ export function MembersList({
                   {member.status.replace("_", " ")}
                 </Badge>
 
-                {/* WhatsApp button for expiring-soon members */}
-                {expiring && (
-                  <a
-                    href={generateWhatsAppLink(
-                      { name: member.name, phone: member.phone },
-                      ownerUpiId ?? "",
-                      cheapestPlan?.price ?? 0,
-                      gymName
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    data-testid={`wa-remind-${member.id}`}
+                {/* WhatsApp button — "Remind" for expiring, "Message" for all others */}
+                <a
+                  href={generateWhatsAppLink(
+                    { name: member.name, phone: member.phone },
+                    ownerUpiId ?? "",
+                    cheapestPlan?.price ?? 0,
+                    gymName
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`wa-msg-${member.id}`}
+                >
+                  <Button
+                    size="sm"
+                    className={
+                      expiring
+                        ? "gap-1 bg-green-600 text-white hover:bg-green-700"
+                        : "gap-1"
+                    }
+                    variant={expiring ? "default" : "outline"}
                   >
-                    <Button
-                      size="sm"
-                      className="gap-1 bg-green-600 text-white hover:bg-green-700"
-                    >
-                      <MessageCircle className="size-3.5" />
-                      <span className="hidden sm:inline">Remind</span>
-                    </Button>
-                  </a>
-                )}
+                    <MessageCircle className="size-3.5" strokeWidth={1.5} />
+                    <span className="hidden sm:inline">
+                      {expiring ? "Remind" : "Message"}
+                    </span>
+                  </Button>
+                </a>
               </div>
             );
           })}

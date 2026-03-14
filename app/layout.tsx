@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WorkspaceProvider } from "@/components/providers/workspace-provider";
 import "./globals.css";
 
@@ -34,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#09090b" />
         <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
@@ -42,10 +43,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <WorkspaceProvider>
-          {children}
-        </WorkspaceProvider>
-        <Toaster richColors position="top-center" />
+        <ThemeProvider>
+          <WorkspaceProvider>
+            {children}
+          </WorkspaceProvider>
+          <Toaster richColors position="top-center" />
+        </ThemeProvider>
       </body>
     </html>
   );

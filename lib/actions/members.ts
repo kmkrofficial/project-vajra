@@ -15,6 +15,7 @@ import {
 } from "@/lib/dal/members";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
+import { memberFormSchema } from "@/lib/validations";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -43,6 +44,13 @@ export async function createMember(data: {
 > {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
+
+  // Server-side validation
+  const parsed = memberFormSchema.safeParse(data);
+  if (!parsed.success) {
+    const firstError = parsed.error.issues[0]?.message ?? "Invalid input.";
+    return { success: false, error: firstError };
+  }
 
   const ws = await getActiveWorkspace();
   if (!ws) return { success: false, error: "No active workspace." };

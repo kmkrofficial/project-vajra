@@ -9,6 +9,8 @@ import {
   Settings,
   Dumbbell,
   ScanLine,
+  KeyRound,
+  BarChart3,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { cn } from "@/lib/utils";
@@ -25,8 +27,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/app/members", icon: Users },
+  { label: "Analytics", href: "/app/analytics", icon: BarChart3, adminOnly: true },
   { label: "Kiosk", href: "/kiosk", icon: ScanLine },
   { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
+  { label: "Kiosk PIN", href: "/app/settings/kiosk", icon: KeyRound, adminOnly: true },
   { label: "Settings", href: "/app/settings/plans", icon: Settings, adminOnly: true },
 ];
 

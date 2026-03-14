@@ -4,12 +4,11 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { processKioskCheckin } from "@/lib/actions/kiosk";
+import { processKioskCheckin, verifyKioskExitPin } from "@/lib/actions/kiosk";
 
 type KioskState = "idle" | "loading" | "success" | "error";
 
 const COOKIE_NAME = "vajra_active_workspace";
-const STAFF_EXIT_CODE = "0000";
 
 function readBranchIdFromCookie(): string | null {
   if (typeof document === "undefined") return null;
@@ -100,12 +99,22 @@ export default function KioskPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleKey, showExitModal]);
 
-  function handleExitSubmit() {
-    if (exitCode === STAFF_EXIT_CODE) {
+  const [exitLoading, setExitLoading] = useState(false);
+  const [exitError, setExitError] = useState("");
+
+  async function handleExitSubmit() {
+    if (!branchId || !exitCode) return;
+    setExitLoading(true);
+    setExitError("");
+
+    const result = await verifyKioskExitPin(branchId, exitCode);
+    if (result.success) {
       router.push("/app/dashboard");
     } else {
+      setExitError(result.error ?? "Incorrect PIN.");
       setExitCode("");
     }
+    setExitLoading(false);
   }
 
   // Background color based on state
@@ -139,13 +148,16 @@ export default function KioskPage() {
             </p>
             <Input
               type="password"
-              maxLength={4}
+              maxLength={6}
               value={exitCode}
               onChange={(e) => setExitCode(e.target.value)}
               className="text-center text-lg"
               autoFocus
               data-testid="kiosk-exit-input"
             />
+            {exitError && (
+              <p className="text-xs text-destructive">{exitError}</p>
+            )}
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -153,6 +165,7 @@ export default function KioskPage() {
                 onClick={() => {
                   setShowExitModal(false);
                   setExitCode("");
+                  setExitError("");
                 }}
               >
                 Cancel
@@ -160,9 +173,10 @@ export default function KioskPage() {
               <Button
                 className="flex-1"
                 onClick={handleExitSubmit}
+                disabled={exitLoading}
                 data-testid="kiosk-exit-submit"
               >
-                Exit
+                {exitLoading ? "…" : "Exit"}
               </Button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
 import { createMember, markAsPaid } from "@/lib/actions/members";
+import { memberFormSchema } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,16 +61,19 @@ export function AddMemberSheet({
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   function resetState() {
     setStep("form");
     setLoading(false);
     setSelectedPlanId("");
     setPaymentData(null);
+    setFieldErrors({});
   }
 
   async function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setFieldErrors({});
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -77,14 +81,21 @@ export function AddMemberSheet({
     const phone = formData.get("phone") as string;
     const email = (formData.get("email") as string) || undefined;
 
-    if (!selectedPlanId) {
-      toast.error("Please select a plan.");
-      setLoading(false);
-      return;
-    }
+    const parsed = memberFormSchema.safeParse({
+      name,
+      phone,
+      email: email || "",
+      planId: selectedPlanId || "",
+      branchId: defaultBranchId || "",
+    });
 
-    if (!defaultBranchId) {
-      toast.error("No branch configured.");
+    if (!parsed.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
       setLoading(false);
       return;
     }
@@ -92,11 +103,11 @@ export function AddMemberSheet({
     const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 
     const result = await createMember({
-      name,
-      phone,
-      email,
-      planId: selectedPlanId,
-      branchId: defaultBranchId,
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      email: parsed.data.email || undefined,
+      planId: parsed.data.planId,
+      branchId: parsed.data.branchId,
     });
 
     if (result.success && result.data) {
@@ -167,6 +178,9 @@ export function AddMemberSheet({
                   placeholder="Full Name"
                   required
                 />
+                {fieldErrors.name && (
+                  <p className="text-xs text-destructive">{fieldErrors.name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sheet-phone">Phone</Label>
@@ -176,6 +190,9 @@ export function AddMemberSheet({
                   placeholder="9876543210"
                   required
                 />
+                {fieldErrors.phone && (
+                  <p className="text-xs text-destructive">{fieldErrors.phone}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sheet-email">Email (optional)</Label>
@@ -185,6 +202,9 @@ export function AddMemberSheet({
                   type="email"
                   placeholder="member@example.com"
                 />
+                {fieldErrors.email && (
+                  <p className="text-xs text-destructive">{fieldErrors.email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Plan</Label>
@@ -203,6 +223,9 @@ export function AddMemberSheet({
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErrors.planId && (
+                  <p className="text-xs text-destructive">{fieldErrors.planId}</p>
+                )}
               </div>
               <Button
                 type="submit"
