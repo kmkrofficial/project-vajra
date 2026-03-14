@@ -10,6 +10,8 @@
     "test:e2e": "playwright test",
     "cron:expire": "tsx scripts/daily-expiry.ts",
     "cron:cleanup-audit": "tsx scripts/cleanup-audit.ts",
+    "db:seed": "tsx scripts/seed-demo.ts",
+    "db:seed:clean": "tsx scripts/seed-demo.ts --clean",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:clean": "docker compose down -v && rm -rf .pgdata",
