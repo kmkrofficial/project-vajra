@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { seedWorkspaceForUser, cleanupTestData, getTestDb } from "./helpers";
 
 const TEST_USER = {
   name: "Workspace Test User",
@@ -6,41 +7,79 @@ const TEST_USER = {
   password: "TestPassword123!",
 };
 
+let userId: string;
+let workspaceId: string;
+
 test.describe("Workspace Routing", () => {
-  test.beforeEach(async ({ page }) => {
-    // Sign up a fresh user for each test
+  test.beforeAll(async ({ browser }) => {
+    // Sign up a user to use across all tests
+    const page = await browser.newPage();
     await page.goto("/signup");
     await page.getByLabel("Full Name").fill(TEST_USER.name);
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await page.close();
+
+    // Get user ID and seed a workspace so pages don't redirect to /onboarding
+    const sql = getTestDb();
+    const [row] = await sql`SELECT id FROM "user" WHERE email = ${TEST_USER.email}`;
+    userId = row.id;
+    await sql.end();
+
+    const seeded = await seedWorkspaceForUser(userId);
+    workspaceId = seeded.workspaceId;
+  });
+
+  test.afterAll(async () => {
+    if (workspaceId) await cleanupTestData(workspaceId);
+    const sql = getTestDb();
+    await sql`DELETE FROM "user" WHERE email = ${TEST_USER.email}`;
+    await sql.end();
   });
 
   test("should redirect authenticated user from /login to /workspaces", async ({
     page,
   }) => {
-    // User is already signed up and authenticated from beforeEach
+    // Log in to get an auth cookie
     await page.goto("/login");
-    // Middleware should redirect authenticated user away from /login
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password").fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+
+    // Now revisit /login — middleware should redirect to /workspaces
+    await page.goto("/login");
     await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
   });
 
-  test("should display empty workspace state for new user", async ({
+  test("should display workspace list for user with a workspace", async ({
     page,
   }) => {
-    await page.goto("/workspaces");
-    await expect(page).toHaveURL(/\/workspaces/);
-    // New user has no workspaces, should see the empty state
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password").fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+
+    // User has a workspace, should see the workspace card
     await expect(
-      page.getByText("You don't belong to any workspace yet.")
+      page.locator("[data-testid^='workspace-card-']").first()
     ).toBeVisible({ timeout: 5_000 });
   });
 
   test("should redirect to /workspaces when accessing /app/dashboard without workspace cookie", async ({
     page,
   }) => {
-    // Clear the workspace cookie
+    // Log in first
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password").fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+
+    // Clear the workspace cookie only
     await page.context().clearCookies({
       name: "vajra_active_workspace",
     });

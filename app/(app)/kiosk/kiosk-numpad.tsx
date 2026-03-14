@@ -9,23 +9,11 @@ import { verifyKioskPin } from "@/lib/actions/settings";
 
 type KioskState = "idle" | "loading" | "success" | "error";
 
-const COOKIE_NAME = "vajra_active_workspace";
-
-function readBranchIdFromCookie(): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(`${COOKIE_NAME}=`));
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(match.split("=")[1]));
-    return parsed.branchId ?? null;
-  } catch {
-    return null;
-  }
+interface KioskNumpadProps {
+  branchId: string;
 }
 
-export default function KioskNumpad() {
+export default function KioskNumpad({ branchId }: KioskNumpadProps) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [state, setState] = useState<KioskState>("idle");
@@ -33,8 +21,6 @@ export default function KioskNumpad() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showExitModal, setShowExitModal] = useState(false);
   const [exitCode, setExitCode] = useState("");
-
-  const branchId = readBranchIdFromCookie();
 
   const resetAfterDelay = useCallback(() => {
     setTimeout(() => {

@@ -55,13 +55,7 @@ export default async function AppLayout({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
-        <AppSidebar
-          workspaces={workspaces.map((w) => ({
-            id: w.id,
-            name: w.name,
-            role: w.role,
-          }))}
-        />
+        <AppSidebar />
 
         {/* Main content area */}
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">

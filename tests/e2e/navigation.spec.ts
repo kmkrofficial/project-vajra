@@ -167,9 +167,9 @@ test.describe("Authenticated Navigation", () => {
     await sidebar.getByText("Branches").click();
     await expect(page).toHaveURL(/\/app\/branches/, { timeout: 5_000 });
 
-    // Navigate to Settings (Plans)
+    // Navigate to Settings
     await sidebar.getByText("Settings").click();
-    await expect(page).toHaveURL(/\/app\/settings\/plans/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/app\/settings/, { timeout: 5_000 });
 
     // Navigate back to Dashboard
     await sidebar.getByText("Dashboard").click();

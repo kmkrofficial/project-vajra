@@ -26,6 +26,7 @@ let branchId: string;
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("Analytics & Kiosk PIN", () => {
+  test.describe.configure({ mode: "serial" });
   test.beforeAll(async ({ browser }) => {
     // Sign up the owner
     const ownerPage = await browser.newPage();

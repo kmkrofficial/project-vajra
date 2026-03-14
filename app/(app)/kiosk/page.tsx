@@ -22,8 +22,8 @@ export default async function KioskPage() {
   const isAdmin = ["SUPER_ADMIN", "MANAGER"].includes(workspace.role);
 
   // PIN is configured — show the kiosk numpad
-  if (hasPin) {
-    return <KioskNumpad />;
+  if (hasPin && branchId) {
+    return <KioskNumpad branchId={branchId} />;
   }
 
   // PIN not configured — show setup or error

@@ -112,6 +112,6 @@ test.describe("Owner Revenue Flow", () => {
 
     // Verify the member now shows as ACTIVE in the members list
     await expect(page.getByText("John Doe")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("ACTIVE")).toBeVisible();
+    await expect(page.locator("[data-slot='badge']").filter({ hasText: "ACTIVE" })).toBeVisible();
   });
 });

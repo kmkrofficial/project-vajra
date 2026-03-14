@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { randomBytes, scryptSync } from "node:crypto";
 import {
   seedWorkspaceForUser,
   addStaffToWorkspace,
@@ -6,6 +7,13 @@ import {
   cleanupTestData,
   getTestDb,
 } from "./helpers";
+
+/** Hash a PIN the same way the app does (scrypt + random salt → "salt:hash"). */
+function hashPin(pin: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(pin, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 // ─── Shared Test Data ───────────────────────────────────────────────────────
 
@@ -91,6 +99,16 @@ test.describe("Staff RBAC & Kiosk", () => {
       status: "EXPIRED",
       expiryDate: pastExpiry,
     });
+
+    // Seed a kiosk configuration row with hashed PIN so kiosk numpad shows
+    const sql3 = getTestDb();
+    const hashedKioskPin = hashPin("0000");
+    await sql3`
+      INSERT INTO configuration (workspace_id, branch_id, kiosk_pin, theme_mode)
+      VALUES (${workspaceId}, ${branchId}, ${hashedKioskPin}, 'system')
+      ON CONFLICT DO NOTHING
+    `;
+    await sql3.end();
   });
 
   test.afterAll(async () => {

@@ -7,6 +7,7 @@ import {
   Users,
   GitBranch,
   Settings,
+  Dumbbell,
   ScanLine,
   BarChart3,
   LogOut,
@@ -17,7 +18,6 @@ import {
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { signOutUser } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
-import { WorkspaceSwitcher } from "@/components/features/workspace-switcher";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "MANAGER"];
 
@@ -40,13 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Settings", href: "/app/settings", icon: Settings, adminOnly: true },
 ];
 
-interface WorkspaceOption {
-  id: string;
-  name: string;
-  role: string;
-}
-
-export function AppSidebar({ workspaces = [] }: { workspaces?: WorkspaceOption[] }) {
+export function AppSidebar() {
   const pathname = usePathname();
   const { role, clearWorkspace } = useWorkspace();
   const isAdmin = role ? ADMIN_ROLES.includes(role) : false;
@@ -65,9 +59,10 @@ export function AppSidebar({ workspaces = [] }: { workspaces?: WorkspaceOption[]
       className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-border md:bg-card"
       data-testid="app-sidebar"
     >
-      {/* Workspace Switcher */}
-      <div className="border-b border-border px-2 py-2">
-        <WorkspaceSwitcher workspaces={workspaces} />
+      {/* Logo */}
+      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+        <Dumbbell className="size-5 text-primary" strokeWidth={1.5} />
+        <span className="text-lg font-bold tracking-tight text-foreground">Vajra</span>
       </div>
 
       {/* Nav links */}

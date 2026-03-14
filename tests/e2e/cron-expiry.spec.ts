@@ -5,6 +5,7 @@
  * those whose expiryDate has passed are marked EXPIRED.
  */
 import { test, expect } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { getTestDb, seedWorkspaceForUser, cleanupTestData } from "./helpers";
 
 let workspaceId: string;
@@ -16,10 +17,11 @@ test.describe("Member expiration cron", () => {
   test.beforeAll(async () => {
     const sql = getTestDb();
 
-    // Create a test user via Better-Auth users table
+    // Create a test user via Better-Auth users table (must provide id)
+    const userId = randomUUID();
     const [user] = await sql`
-      INSERT INTO "user" (name, email, email_verified, created_at, updated_at)
-      VALUES ('Cron Tester', ${TEST_USER_EMAIL}, true, now(), now())
+      INSERT INTO "user" (id, name, email, email_verified, created_at, updated_at)
+      VALUES (${userId}, 'Cron Tester', ${TEST_USER_EMAIL}, true, now(), now())
       RETURNING id
     `;
 
