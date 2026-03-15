@@ -112,6 +112,62 @@ export async function getHourlyActivity(
 }
 
 /**
+ * Average hourly check-in counts across all recorded days.
+ * Gives an overall estimate of typical gym traffic per hour (0–23h).
+ * Counts the total check-ins per hour bucket, then divides by the number
+ * of distinct days that have any attendance data.
+ * Hours are computed in the server's local timezone.
+ */
+export async function getAverageHourlyActivity(
+  workspaceId: string
+): Promise<{ hour: number; count: number }[]> {
+  const start = performance.now();
+  // Convert UTC timestamps to local time by adding the server's UTC offset
+  const offsetMinutes = -(new Date().getTimezoneOffset()); // positive for east of UTC
+
+  try {
+    const rows = await db.execute(sql`
+      WITH hourly_counts AS (
+        SELECT
+          EXTRACT(HOUR FROM checked_in_at + make_interval(mins => ${offsetMinutes}))::int AS h,
+          (checked_in_at + make_interval(mins => ${offsetMinutes}))::date AS d,
+          COUNT(*)::int AS cnt
+        FROM attendance
+        WHERE workspace_id = ${workspaceId}
+        GROUP BY h, d
+      ),
+      total_days AS (
+        SELECT COUNT(DISTINCT d)::int AS num_days FROM hourly_counts
+      ),
+      hours AS (
+        SELECT generate_series(0, 23) AS h
+      )
+      SELECT
+        hours.h AS hour,
+        COALESCE(ROUND(SUM(hc.cnt)::numeric / GREATEST(td.num_days, 1)), 0)::int AS count
+      FROM hours
+      CROSS JOIN total_days td
+      LEFT JOIN hourly_counts hc ON hc.h = hours.h
+      GROUP BY hours.h, td.num_days
+      ORDER BY hours.h
+    `);
+
+    logger.debug(
+      { fn: "getAverageHourlyActivity", workspaceId, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+
+    return (rows as unknown as { hour: number; count: number }[]).map((r) => ({
+      hour: Number(r.hour),
+      count: Number(r.count),
+    }));
+  } catch (err) {
+    logger.error({ err, fn: "getAverageHourlyActivity", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/**
  * Get today's total check-in count for a workspace.
  */
 export async function getTodayCheckinCount(workspaceId: string): Promise<number> {

@@ -85,20 +85,20 @@ test.describe("Analytics & Settings", () => {
     // The checkout toggle section should be visible
     await expect(page.getByTestId("checkout-toggle-section")).toBeVisible();
 
-    // Initially disabled (default) — button text should say "Disabled"
-    const btn = page.getByTestId("checkout-toggle-btn");
-    await expect(btn).toBeVisible();
-    await expect(btn).toHaveText("Disabled");
+    // Initially disabled (default) — switch should be unchecked
+    const toggle = page.getByTestId("checkout-toggle-btn");
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute("data-unchecked", "");
 
     // Click to enable
-    await btn.click();
+    await toggle.click();
     await expect(page.getByText("Check-out enabled")).toBeVisible({ timeout: 5_000 });
-    await expect(btn).toHaveText("Enabled");
+    await expect(toggle).toHaveAttribute("data-checked", "");
 
     // Click to disable again
-    await btn.click();
+    await toggle.click();
     await expect(page.getByText("Check-out disabled")).toBeVisible({ timeout: 5_000 });
-    await expect(btn).toHaveText("Disabled");
+    await expect(toggle).toHaveAttribute("data-unchecked", "");
   });
 
   test("kiosk exit link returns to dashboard", async ({ page }) => {

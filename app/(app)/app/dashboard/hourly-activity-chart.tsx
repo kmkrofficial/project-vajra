@@ -2,7 +2,7 @@
 
 /**
  * Hourly activity bar chart — pure CSS, zero external dependencies.
- * Displays member presence per hour (0–23h) for today.
+ * Displays average member check-ins per hour across all recorded days.
  */
 
 interface HourlyDataPoint {
@@ -26,7 +26,7 @@ export function HourlyActivityChart({ data }: { data: HourlyDataPoint[] }) {
   if (visible.every((d) => d.count === 0)) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        No check-ins recorded today.
+        No check-in data recorded yet.
       </p>
     );
   }
@@ -39,9 +39,6 @@ export function HourlyActivityChart({ data }: { data: HourlyDataPoint[] }) {
     >
       {visible.map((d) => {
         const heightPct = Math.max((d.count / maxCount) * 100, 2);
-        const now = new Date();
-        const isCurrentHour = d.hour === now.getHours();
-
         return (
           <div
             key={d.hour}
@@ -54,11 +51,7 @@ export function HourlyActivityChart({ data }: { data: HourlyDataPoint[] }) {
             {/* Bar */}
             <div
               className={`w-full rounded-t-sm transition-all sm:rounded-t-md ${
-                isCurrentHour
-                  ? "bg-primary"
-                  : d.count > 0
-                    ? "bg-primary/60"
-                    : "bg-muted"
+                d.count > 0 ? "bg-primary/60" : "bg-muted"
               }`}
               style={{
                 height: `${heightPct}%`,
@@ -66,13 +59,7 @@ export function HourlyActivityChart({ data }: { data: HourlyDataPoint[] }) {
               }}
             />
             {/* Hour label */}
-            <span
-              className={`text-[9px] font-medium sm:text-xs ${
-                isCurrentHour
-                  ? "text-primary font-bold"
-                  : "text-muted-foreground"
-              }`}
-            >
+            <span className="text-[9px] font-medium text-muted-foreground sm:text-xs">
               {formatHour(d.hour)}
             </span>
           </div>

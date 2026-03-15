@@ -9,13 +9,11 @@ import {
   Settings,
   Dumbbell,
   BarChart3,
-  LogOut,
   ClipboardList,
   UserCog,
   FileText,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
-import { signOutUser } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "MANAGER"];
@@ -40,17 +38,12 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { role, clearWorkspace } = useWorkspace();
+  const { role } = useWorkspace();
   const isAdmin = role ? ADMIN_ROLES.includes(role) : false;
 
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.adminOnly || isAdmin
   );
-
-  async function handleLogout() {
-    clearWorkspace();
-    await signOutUser();
-  }
 
   return (
     <aside
@@ -87,18 +80,6 @@ export function AppSidebar() {
           );
         })}
       </nav>
-
-      {/* Logout button pinned to bottom */}
-      <div className="border-t border-border p-3">
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          data-testid="sidebar-logout"
-        >
-          <LogOut className="size-4" strokeWidth={1.5} />
-          Log Out
-        </button>
-      </div>
     </aside>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { toggleCheckoutEnabled } from "@/lib/actions/settings";
 
 export function CheckoutToggle({
@@ -13,14 +13,13 @@ export function CheckoutToggle({
   const [enabled, setEnabled] = useState(defaultEnabled);
   const [loading, setLoading] = useState(false);
 
-  async function handleToggle() {
+  async function handleToggle(checked: boolean) {
     setLoading(true);
-    const next = !enabled;
-    const result = await toggleCheckoutEnabled(next);
+    const result = await toggleCheckoutEnabled(checked);
 
     if (result.success) {
-      setEnabled(next);
-      toast.success(next ? "Check-out enabled" : "Check-out disabled");
+      setEnabled(checked);
+      toast.success(checked ? "Check-out enabled" : "Check-out disabled");
     } else {
       toast.error(result.error ?? "Failed to update setting.");
     }
@@ -29,15 +28,13 @@ export function CheckoutToggle({
 
   return (
     <div className="flex items-center gap-4" data-testid="checkout-toggle-section">
-      <Button
-        variant={enabled ? "default" : "outline"}
-        size="sm"
-        onClick={handleToggle}
+      <Switch
+        checked={enabled}
+        onCheckedChange={handleToggle}
         disabled={loading}
         data-testid="checkout-toggle-btn"
-      >
-        {loading ? "Saving…" : enabled ? "Enabled" : "Disabled"}
-      </Button>
+        aria-label="Toggle member check-out"
+      />
       <span className="text-sm text-muted-foreground">
         {enabled
           ? "Members can check out by entering their PIN again."

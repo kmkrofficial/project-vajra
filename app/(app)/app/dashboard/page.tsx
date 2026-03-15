@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { MembersView } from "./members-view";
 import { HourlyActivityChart } from "./hourly-activity-chart";
-import { getHourlyActivity, getTodayCheckinCount } from "@/lib/dal/attendance";
+import { getAverageHourlyActivity, getTodayCheckinCount } from "@/lib/dal/attendance";
 
 /** Roles that can see revenue stats and all-branches filter. */
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   const [plans, allMembers, hourlyActivity, todayCheckins] = await Promise.all([
     getActivePlans(ws.workspaceId),
     getMembers(ws.workspaceId),
-    getHourlyActivity(ws.workspaceId),
+    getAverageHourlyActivity(ws.workspaceId),
     getTodayCheckinCount(ws.workspaceId),
   ]);
 
@@ -195,9 +195,9 @@ export default async function DashboardPage() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <Activity className="size-4" />
-            Today&apos;s Hourly Activity
+            Daily Check-in Estimate
             <span className="ml-auto text-xs text-foreground">
-              {todayCheckins} check-in{todayCheckins !== 1 ? "s" : ""}
+              {todayCheckins} today
             </span>
           </CardTitle>
         </CardHeader>

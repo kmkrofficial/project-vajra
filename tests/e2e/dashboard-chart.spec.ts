@@ -38,7 +38,7 @@ test.describe("Dashboard Hourly Activity", () => {
 
     await addStaffToWorkspace(workspaceId, branchId, staffId, "RECEPTIONIST");
 
-    // Seed some attendance data for today
+    // Seed attendance data across multiple days so the average hourly chart has data
     const memberId = await seedMember({
       workspaceId,
       branchId,
@@ -51,11 +51,14 @@ test.describe("Dashboard Hourly Activity", () => {
 
     const sql2 = getTestDb();
     const now = new Date();
-    const checkinTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0);
-    await sql2`
-      INSERT INTO attendance (workspace_id, branch_id, member_id, checked_in_at)
-      VALUES (${workspaceId}, ${branchId}, ${memberId}, ${checkinTime})
-    `;
+    // Seed check-ins at 9 AM for today and 2 previous days
+    for (let daysAgo = 0; daysAgo < 3; daysAgo++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 9, 0, 0);
+      await sql2`
+        INSERT INTO attendance (workspace_id, branch_id, member_id, checked_in_at)
+        VALUES (${workspaceId}, ${branchId}, ${memberId}, ${d})
+      `;
+    }
     await sql2.end();
   });
 
@@ -76,10 +79,10 @@ test.describe("Dashboard Hourly Activity", () => {
       timeout: 10_000,
     });
 
-    // Either the chart bars or the "No check-ins" message should render
+    // Either the chart bars or the "No check-in data" message should render
     const chartOrEmpty = page.locator(
       "[data-testid='hourly-activity-chart']"
-    ).or(page.getByText("No check-ins recorded today"));
+    ).or(page.getByText("No check-in data recorded yet"));
     await expect(chartOrEmpty.first()).toBeVisible({ timeout: 5_000 });
   });
 
