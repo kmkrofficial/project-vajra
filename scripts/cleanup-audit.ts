@@ -2,7 +2,8 @@
  * Audit Log Cleanup Worker
  *
  * Self-hosted cron script that permanently deletes audit_logs older
- * than 6 months across all tenants to conserve DB space.
+ * than a configurable retention period (read from config.yml) across
+ * all tenants to conserve DB space.
  *
  * Usage:
  *   npx tsx scripts/cleanup-audit.ts
@@ -13,10 +14,26 @@
  */
 
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
+
+// ─── Read config.yml ────────────────────────────────────────────────────────
+
+function readRetentionMonths(): number {
+  try {
+    const configPath = resolve(__dirname, "..", "config.yml");
+    const raw = readFileSync(configPath, "utf-8");
+    const match = raw.match(/audit_retention_months:\s*(\d+)/);
+    return match ? Number(match[1]) : 6;
+  } catch {
+    console.warn("⚠ Could not read config.yml, using default retention of 6 months.");
+    return 6;
+  }
+}
 
 // ─── Minimal schema (just what the script needs) ────────────────────────────
 
@@ -42,18 +59,21 @@ async function main() {
     process.exit(1);
   }
 
+  const retentionMonths = readRetentionMonths();
+  console.log(`  Config → audit_retention_months: ${retentionMonths}`);
+
   const client = postgres(process.env.DATABASE_URL, { prepare: false });
   const db = drizzle(client);
 
   try {
     const deleted = await db
       .delete(auditLogs)
-      .where(sql`${auditLogs.createdAt} < NOW() - INTERVAL '6 months'`)
+      .where(sql`${auditLogs.createdAt} < NOW() - INTERVAL '${sql.raw(String(retentionMonths))} months'`)
       .returning({ id: auditLogs.id });
 
     const duration = Date.now() - started.getTime();
     console.log(
-      `[${new Date().toISOString()}] Done. Deleted ${deleted.length} audit log(s) older than 6 months in ${duration}ms.`
+      `[${new Date().toISOString()}] Done. Deleted ${deleted.length} audit log(s) older than ${retentionMonths} months in ${duration}ms.`
     );
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Audit cleanup FAILED:`, error);

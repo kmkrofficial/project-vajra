@@ -57,7 +57,7 @@ export async function getMemberByPin(pin: string, branchId: string) {
   }
 }
 
-/** Insert a new member with PENDING_PAYMENT status. */
+/** Insert a new member. Defaults to PENDING_PAYMENT if no status provided. */
 export async function insertMember(data: {
   workspaceId: string;
   branchId: string;
@@ -65,6 +65,7 @@ export async function insertMember(data: {
   phone: string;
   email?: string | null;
   checkinPin: string;
+  status?: "PENDING_PAYMENT" | "TRIAL" | "ENQUIRY";
 }) {
   const start = performance.now();
   try {
@@ -72,7 +73,7 @@ export async function insertMember(data: {
       .insert(members)
       .values({
         ...data,
-        status: "PENDING_PAYMENT",
+        status: data.status ?? "PENDING_PAYMENT",
       })
       .returning();
 

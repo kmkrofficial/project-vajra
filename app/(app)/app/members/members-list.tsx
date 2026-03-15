@@ -35,11 +35,14 @@ interface Plan {
   durationDays: number;
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> =
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> =
   {
     ACTIVE: "default",
     EXPIRED: "destructive",
     PENDING_PAYMENT: "secondary",
+    TRIAL: "outline",
+    ENQUIRY: "secondary",
+    CHURNED: "destructive",
   };
 
 function getInitials(name: string): string {

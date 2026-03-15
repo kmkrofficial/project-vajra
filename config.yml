@@ -1,0 +1,17 @@
+# Project Vajra — Application Configuration
+# This file is read by dev scripts and cron workers to centralise runtime settings.
+
+server:
+  port: 3000
+
+# ── Scheduler / Cron Configuration ───────────────────────────────────────────
+# All durations are integers. The cron workers read these at startup.
+schedulers:
+  # Days a TRIAL member can use the gym before being moved to PENDING_PAYMENT
+  trial_period_days: 2
+
+  # Days after which an ENQUIRY member with no activity is marked CHURNED
+  enquiry_churn_days: 30
+
+  # Months of audit log history to retain (older logs are deleted)
+  audit_retention_months: 3

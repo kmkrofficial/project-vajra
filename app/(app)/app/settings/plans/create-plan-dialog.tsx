@@ -25,6 +25,7 @@ export function CreatePlanDialog() {
 
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
+    const description = formData.get("description") as string;
     const price = Number(formData.get("price"));
     const durationDays = Number(formData.get("durationDays"));
 
@@ -34,7 +35,7 @@ export function CreatePlanDialog() {
       return;
     }
 
-    const result = await createPlan({ name, price, durationDays });
+    const result = await createPlan({ name, description: description || undefined, price, durationDays });
 
     if (result.success) {
       toast.success("Plan created successfully.");
@@ -69,6 +70,18 @@ export function CreatePlanDialog() {
               placeholder="e.g. 1 Month Standard"
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="plan-description">Description (optional)</Label>
+            <textarea
+              id="plan-description"
+              name="description"
+              placeholder="Describe what's included in this plan… Markdown supported."
+              maxLength={500}
+              rows={3}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Max 500 characters. Markdown supported.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="plan-price">Price (₹)</Label>

@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "kill-port": "tsx scripts/kill-port.ts",
+    "predev": "tsx scripts/kill-port.ts",
+    "dev": "next dev --turbopack --port 3000",
     "build": "drizzle-kit push && next build",
-    "start": "next start",
+    "start": "next start --port 3000",
     "lint": "eslint",
     "test:e2e": "playwright test",
     "cron:expire": "tsx scripts/daily-expiry.ts",

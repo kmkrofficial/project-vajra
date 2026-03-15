@@ -61,6 +61,7 @@ export async function getPlanById(planId: string, workspaceId: string) {
 export async function insertPlan(data: {
   workspaceId: string;
   name: string;
+  description?: string | null;
   price: number;
   durationDays: number;
 }) {
@@ -79,12 +80,13 @@ export async function insertPlan(data: {
 export async function updatePlan(
   planId: string,
   workspaceId: string,
-  data: { name?: string; price?: number; durationDays?: number }
+  data: { name?: string; description?: string | null; price?: number; durationDays?: number }
 ) {
   const start = performance.now();
   try {
     const updates: Record<string, unknown> = {};
     if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
     if (data.price !== undefined) updates.price = data.price;
     if (data.durationDays !== undefined) updates.durationDays = data.durationDays;
 

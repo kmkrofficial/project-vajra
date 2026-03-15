@@ -34,6 +34,40 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     await sql.end();
   });
 
+  // ─── UPI Handle ──────────────────────────────────────────────────────────
+
+  test("UPI handle section is visible with current value", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER, expect);
+    await page.goto("/app/settings");
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
+
+    await expect(page.getByTestId("upi-handle-section")).toBeVisible();
+    const input = page.getByTestId("upi-handle-input");
+    await expect(input).toBeVisible();
+    // Seeded workspace has 'testowner@upi' — save button should be disabled (no changes)
+    await expect(page.getByTestId("upi-handle-save-btn")).toBeDisabled();
+  });
+
+  test("can update UPI handle", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER, expect);
+    await page.goto("/app/settings");
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
+
+    const input = page.getByTestId("upi-handle-input");
+    await input.clear();
+    await input.fill("newowner@okaxis");
+
+    // Save button should be enabled
+    await expect(page.getByTestId("upi-handle-save-btn")).toBeEnabled();
+    await page.getByTestId("upi-handle-save-btn").click();
+    await expect(page.getByText("UPI handle updated")).toBeVisible({ timeout: 10_000 });
+
+    // Verify persistence — reload page
+    await page.reload();
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("upi-handle-input")).toHaveValue("newowner@okaxis");
+  });
+
   // ─── UPI QR Code Upload ─────────────────────────────────────────────────
 
   test("UPI QR upload section is visible on settings page", async ({ page }) => {

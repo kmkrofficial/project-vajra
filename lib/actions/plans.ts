@@ -23,6 +23,7 @@ type ActionResult<T = undefined> = {
  */
 export async function createPlan(data: {
   name: string;
+  description?: string;
   price: number;
   durationDays: number;
 }): Promise<ActionResult> {
@@ -42,9 +43,15 @@ export async function createPlan(data: {
   }
 
   try {
+    const description = data.description?.trim() || null;
+    if (description && description.length > 500) {
+      return { success: false, error: "Description must be 500 characters or fewer." };
+    }
+
     const plan = await insertPlan({
       workspaceId: ws.workspaceId,
       name: data.name,
+      description,
       price: data.price,
       durationDays: data.durationDays,
     });
@@ -55,7 +62,7 @@ export async function createPlan(data: {
       action: "CREATE_PLAN",
       entityType: "PLAN",
       entityId: plan.id,
-      details: { name: data.name, price: data.price, durationDays: data.durationDays },
+      details: { name: data.name, description: !!description, price: data.price, durationDays: data.durationDays },
     });
 
     revalidatePath("/app/settings/plans");
@@ -76,7 +83,7 @@ export async function createPlan(data: {
  */
 export async function updatePlanAction(
   planId: string,
-  data: { name?: string; price?: number; durationDays?: number }
+  data: { name?: string; description?: string | null; price?: number; durationDays?: number }
 ): Promise<ActionResult> {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
@@ -101,10 +108,14 @@ export async function updatePlanAction(
   if (data.durationDays !== undefined && data.durationDays < 1) {
     return { success: false, error: "Duration must be at least 1 day." };
   }
+  if (data.description !== undefined && data.description !== null && data.description.length > 500) {
+    return { success: false, error: "Description must be 500 characters or fewer." };
+  }
 
   try {
     const updated = await updatePlan(planId, ws.workspaceId, {
       name: data.name?.trim(),
+      description: data.description !== undefined ? (data.description?.trim() || null) : undefined,
       price: data.price,
       durationDays: data.durationDays,
     });

@@ -37,7 +37,7 @@ export async function processKioskCheckin(
       return { success: false, error: "Expired or Invalid PIN" };
     }
 
-    if (member.status !== "ACTIVE") {
+    if (member.status !== "ACTIVE" && member.status !== "TRIAL") {
       return { success: false, error: "Expired or Invalid PIN" };
     }
 

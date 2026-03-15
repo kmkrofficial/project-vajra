@@ -4,6 +4,7 @@ import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getWorkspaceConfig } from "@/lib/dal/config";
 import { CheckoutToggle } from "./checkout-toggle";
+import { UpiHandleEditor } from "./upi-handle-editor";
 import { UpiQrUpload } from "./upi-qr-upload";
 import { WhatsappTemplateEditor } from "./whatsapp-template";
 
@@ -28,6 +29,20 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-8 p-4 md:p-6" data-testid="settings-page">
       <h1 className="text-xl font-bold text-foreground">Settings</h1>
+
+      {/* UPI Handle */}
+      <section className="space-y-2">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            UPI Handle
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Your UPI ID for receiving payments. This is used to generate
+            payment QR codes and UPI deep links for members.
+          </p>
+        </div>
+        <UpiHandleEditor defaultUpiId={workspace.ownerUpiId ?? ""} />
+      </section>
 
       {/* Member Checkout */}
       <section className="space-y-2">

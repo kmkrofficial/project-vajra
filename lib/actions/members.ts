@@ -217,3 +217,111 @@ export async function fetchMember(memberId: string) {
 
   return getMemberById(memberId, ws.workspaceId);
 }
+
+/**
+ * Create a new member as an ENQUIRY — someone who asked about the gym
+ * but hasn't joined yet. If they don't convert within `enquiry_churn_days`
+ * (config.yml), the cron worker marks them CHURNED.
+ */
+export async function createEnquiry(data: {
+  name: string;
+  phone: string;
+  email?: string;
+  branchId: string;
+}): Promise<ActionResult<{ memberId: string }>> {
+  const session = await getSession();
+  if (!session?.user) return { success: false, error: "Not authenticated." };
+
+  const ws = await getActiveWorkspace();
+  if (!ws) return { success: false, error: "No active workspace." };
+
+  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
+  if (!membership) return { success: false, error: "Insufficient permissions." };
+
+  if (!data.name?.trim() || !data.phone?.trim()) {
+    return { success: false, error: "Name and phone are required." };
+  }
+
+  try {
+    const member = await insertMember({
+      workspaceId: ws.workspaceId,
+      branchId: data.branchId,
+      name: data.name,
+      phone: data.phone,
+      email: data.email || null,
+      checkinPin: generatePin(),
+      status: "ENQUIRY",
+    });
+
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "CREATE_ENQUIRY",
+      entityType: "MEMBER",
+      entityId: member.id,
+      details: {},
+    });
+
+    revalidatePath("/app/dashboard");
+    revalidatePath("/app/members");
+    return { success: true, data: { memberId: member.id } };
+  } catch (err) {
+    logger.error({ err, action: "create_enquiry", workspaceId: ws.workspaceId }, "Failed to create enquiry");
+    return { success: false, error: "Failed to create enquiry." };
+  }
+}
+
+/**
+ * Create a new member on a TRIAL basis. They can use the gym for
+ * `trial_period_days` (config.yml) before the cron moves them to PENDING_PAYMENT.
+ * Trial members CAN check in at the kiosk.
+ */
+export async function createTrialMember(data: {
+  name: string;
+  phone: string;
+  email?: string;
+  branchId: string;
+}): Promise<ActionResult<{ memberId: string; checkinPin: string }>> {
+  const session = await getSession();
+  if (!session?.user) return { success: false, error: "Not authenticated." };
+
+  const ws = await getActiveWorkspace();
+  if (!ws) return { success: false, error: "No active workspace." };
+
+  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
+  if (!membership) return { success: false, error: "Insufficient permissions." };
+
+  if (!data.name?.trim() || !data.phone?.trim()) {
+    return { success: false, error: "Name and phone are required." };
+  }
+
+  const checkinPin = generatePin();
+
+  try {
+    const member = await insertMember({
+      workspaceId: ws.workspaceId,
+      branchId: data.branchId,
+      name: data.name,
+      phone: data.phone,
+      email: data.email || null,
+      checkinPin,
+      status: "TRIAL",
+    });
+
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "CREATE_TRIAL_MEMBER",
+      entityType: "MEMBER",
+      entityId: member.id,
+      details: {},
+    });
+
+    revalidatePath("/app/dashboard");
+    revalidatePath("/app/members");
+    return { success: true, data: { memberId: member.id, checkinPin } };
+  } catch (err) {
+    logger.error({ err, action: "create_trial_member", workspaceId: ws.workspaceId }, "Failed to create trial member");
+    return { success: false, error: "Failed to create trial member." };
+  }
+}

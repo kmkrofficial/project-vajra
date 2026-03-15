@@ -213,10 +213,11 @@ export async function updateBranch(
   }
 }
 
-/** Update workspace-level settings (UPI QR image, WhatsApp template, etc.). */
+/** Update workspace-level settings (UPI handle, QR image, WhatsApp template, etc.). */
 export async function updateWorkspaceSettings(
   workspaceId: string,
   data: {
+    ownerUpiId?: string | null;
     upiQrImageUrl?: string | null;
     whatsappTemplate?: string | null;
   }

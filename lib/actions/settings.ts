@@ -60,6 +60,60 @@ export async function toggleCheckoutEnabled(
 }
 
 /**
+ * Update the workspace UPI handle (e.g. yourname@paytm).
+ * Only SUPER_ADMIN and MANAGER roles can change this.
+ */
+export async function updateUpiHandle(
+  upiId: string
+): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session?.user) return { success: false, error: "Not authenticated." };
+
+  const ws = await getActiveWorkspace();
+  if (!ws) return { success: false, error: "No active workspace." };
+
+  const membership = await verifyWorkspaceMembership(
+    ws.workspaceId,
+    session.user.id
+  );
+  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+    return { success: false, error: "Only admins can change this setting." };
+  }
+
+  const trimmed = upiId.trim();
+  if (!trimmed) {
+    return { success: false, error: "UPI ID cannot be empty." };
+  }
+  // Basic UPI ID format: something@something
+  if (!trimmed.includes("@")) {
+    return { success: false, error: "Invalid UPI ID format (e.g. name@bank)." };
+  }
+
+  try {
+    await updateWorkspaceSettings(ws.workspaceId, {
+      ownerUpiId: trimmed,
+    });
+
+    await insertAuditLog({
+      workspaceId: ws.workspaceId,
+      userId: session.user.id,
+      action: "UPDATE_UPI_HANDLE",
+      entityType: "WORKSPACE",
+      entityId: ws.workspaceId,
+      details: { upiId: trimmed },
+    });
+
+    return { success: true };
+  } catch (err) {
+    logger.error(
+      { err, action: "updateUpiHandle" },
+      "Failed to update UPI handle"
+    );
+    return { success: false, error: "Failed to save UPI handle." };
+  }
+}
+
+/**
  * Save or remove a custom UPI QR code image (base64 data URL).
  * Only SUPER_ADMIN and MANAGER roles can change this.
  * Pass `null` to remove the uploaded QR (reverts to auto-generated).

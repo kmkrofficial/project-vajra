@@ -30,11 +30,14 @@ interface Plan {
   durationDays: number;
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> =
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> =
   {
     ACTIVE: "default",
     EXPIRED: "destructive",
     PENDING_PAYMENT: "secondary",
+    TRIAL: "outline",
+    ENQUIRY: "secondary",
+    CHURNED: "destructive",
   };
 
 /** Roles that can see revenue / full member table */

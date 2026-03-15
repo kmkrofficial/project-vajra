@@ -129,7 +129,7 @@ export async function seedMember(data: {
   name: string;
   phone: string;
   checkinPin: string;
-  status: "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT";
+  status: "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT" | "TRIAL" | "ENQUIRY" | "CHURNED";
   expiryDate?: Date;
 }) {
   const sql = getTestDb();

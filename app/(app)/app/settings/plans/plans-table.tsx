@@ -27,6 +27,7 @@ import { Pencil } from "lucide-react";
 interface Plan {
   id: string;
   name: string;
+  description: string | null;
   price: number;
   durationDays: number;
   active: boolean;
@@ -53,6 +54,7 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
 
     const formData = new FormData(e.currentTarget);
     const name = (formData.get("name") as string).trim();
+    const description = formData.get("description") as string;
     const price = Number(formData.get("price"));
     const durationDays = Number(formData.get("durationDays"));
 
@@ -64,6 +66,7 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
 
     const result = await updatePlanAction(editPlan.id, {
       name,
+      description: description?.trim() || null,
       price,
       durationDays,
     });
@@ -103,7 +106,16 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
           <TableBody>
             {plans.map((plan) => (
               <TableRow key={plan.id} data-testid={`plan-row-${plan.id}`}>
-                <TableCell className="font-medium">{plan.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div>
+                    {plan.name}
+                    {plan.description && (
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                        {plan.description}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">₹{plan.price}</TableCell>
                 <TableCell className="text-right">
                   {plan.durationDays} days
@@ -156,6 +168,20 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                   required
                   data-testid="edit-plan-name"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-plan-description">Description (optional)</Label>
+                <textarea
+                  id="edit-plan-description"
+                  name="description"
+                  defaultValue={editPlan.description ?? ""}
+                  maxLength={500}
+                  rows={3}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Describe what's included… Markdown supported."
+                  data-testid="edit-plan-description"
+                />
+                <p className="text-xs text-muted-foreground">Max 500 characters. Markdown supported.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-plan-price">Price (₹)</Label>

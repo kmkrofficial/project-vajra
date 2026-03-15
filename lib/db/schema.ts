@@ -141,17 +141,26 @@ export const plans = pgTable("plans", {
     .notNull()
     .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  description: varchar("description", { length: 500 }),
   price: integer("price").notNull(),
   durationDays: integer("duration_days").notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-/** Member lifecycle: PENDING_PAYMENT → ACTIVE → EXPIRED. Cron re-checks daily. */
+/**
+ * Member lifecycle:
+ *   ENQUIRY → (no join in N days) → CHURNED
+ *   TRIAL → (after N days) → PENDING_PAYMENT → ACTIVE → EXPIRED
+ * Cron re-checks daily. Durations are configurable in config.yml.
+ */
 export const memberStatusEnum = pgEnum("member_status", [
   "ACTIVE",
   "EXPIRED",
   "PENDING_PAYMENT",
+  "TRIAL",
+  "ENQUIRY",
+  "CHURNED",
 ]);
 
 /** Gym member (end customer). Scoped to workspace + branch. Has a 4-digit kiosk check-in PIN. */
