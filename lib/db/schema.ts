@@ -89,6 +89,8 @@ export const gymWorkspaces = pgTable("gym_workspaces", {
   name: text("name").notNull(),
   primaryBranchName: text("primary_branch_name").notNull(),
   ownerUpiId: text("owner_upi_id"),
+  upiQrImageUrl: text("upi_qr_image_url"),
+  whatsappTemplate: text("whatsapp_template"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -214,6 +214,8 @@ export default async function DashboardPage() {
         ownerUpiId={workspace.ownerUpiId}
         gymName={workspace.name}
         role={role}
+        upiQrImageUrl={workspace.upiQrImageUrl}
+        whatsappTemplate={workspace.whatsappTemplate}
       />
     </div>
   );

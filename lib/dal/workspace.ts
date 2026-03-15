@@ -74,6 +74,8 @@ export async function getWorkspaceDetails(
         name: gymWorkspaces.name,
         primaryBranchName: gymWorkspaces.primaryBranchName,
         ownerUpiId: gymWorkspaces.ownerUpiId,
+        upiQrImageUrl: gymWorkspaces.upiQrImageUrl,
+        whatsappTemplate: gymWorkspaces.whatsappTemplate,
         role: workspaceUsers.role,
         assignedBranchId: workspaceUsers.assignedBranchId,
       })
@@ -207,6 +209,33 @@ export async function updateBranch(
     return updated ?? null;
   } catch (err) {
     logger.error({ err, fn: "updateBranch", workspaceId, branchId }, "DAL update failed");
+    throw err;
+  }
+}
+
+/** Update workspace-level settings (UPI QR image, WhatsApp template, etc.). */
+export async function updateWorkspaceSettings(
+  workspaceId: string,
+  data: {
+    upiQrImageUrl?: string | null;
+    whatsappTemplate?: string | null;
+  }
+) {
+  const start = performance.now();
+  try {
+    const [updated] = await db
+      .update(gymWorkspaces)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(gymWorkspaces.id, workspaceId))
+      .returning({ id: gymWorkspaces.id });
+
+    logger.debug(
+      { fn: "updateWorkspaceSettings", workspaceId, ms: Math.round(performance.now() - start) },
+      "DAL update complete"
+    );
+    return !!updated;
+  } catch (err) {
+    logger.error({ err, fn: "updateWorkspaceSettings", workspaceId }, "DAL update failed");
     throw err;
   }
 }

@@ -33,17 +33,28 @@ function formatPhone(phone: string): string {
 /**
  * Generate a WhatsApp `wa.me` link with a pre-filled renewal message
  * that includes a UPI payment deep link.
+ *
+ * Supports a custom template with placeholders: {name}, {gym}, {amount}, {upiLink}
+ * Falls back to a sensible default if no template is provided.
  */
 export function generateWhatsAppLink(
   member: MemberInfo,
   ownerUpi: string,
   planPrice: number,
-  gymName: string
+  gymName: string,
+  customTemplate?: string | null
 ): string {
   const phone = formatPhone(member.phone);
 
   const upiLink = `upi://pay?pa=${ownerUpi}&pn=${gymName}&am=${planPrice}&cu=INR`;
-  const message = `Hi ${member.name}, your membership at ${gymName} expires soon. Renew via UPI: ${upiLink}`;
+
+  const message = customTemplate
+    ? customTemplate
+        .replace(/\{name}/g, member.name)
+        .replace(/\{gym}/g, gymName)
+        .replace(/\{amount}/g, String(planPrice))
+        .replace(/\{upiLink}/g, upiLink)
+    : `Hi ${member.name}, your membership at ${gymName} expires soon. Renew via UPI: ${upiLink}`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }

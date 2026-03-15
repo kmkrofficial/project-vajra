@@ -49,11 +49,13 @@ export function AddMemberSheet({
   defaultBranchId,
   ownerUpiId,
   gymName,
+  upiQrImageUrl,
 }: {
   plans: Plan[];
   defaultBranchId: string | null;
   ownerUpiId: string | null;
   gymName: string;
+  upiQrImageUrl?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -274,11 +276,20 @@ export function AddMemberSheet({
                 className="rounded-lg bg-white p-4"
                 data-testid="upi-qr-code"
               >
-                <QRCodeSVG
-                  value={paymentData?.upiString ?? ""}
-                  size={220}
-                  level="M"
-                />
+                {upiQrImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={upiQrImageUrl}
+                    alt="UPI QR Code"
+                    className="size-[220px] object-contain"
+                  />
+                ) : (
+                  <QRCodeSVG
+                    value={paymentData?.upiString ?? ""}
+                    size={220}
+                    level="M"
+                  />
+                )}
               </div>
 
               <p className="text-center text-xs text-muted-foreground break-all px-4">

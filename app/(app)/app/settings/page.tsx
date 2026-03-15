@@ -4,6 +4,8 @@ import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getWorkspaceConfig } from "@/lib/dal/config";
 import { CheckoutToggle } from "./checkout-toggle";
+import { UpiQrUpload } from "./upi-qr-upload";
+import { WhatsappTemplateEditor } from "./whatsapp-template";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -39,6 +41,35 @@ export default async function SettingsPage() {
           </p>
         </div>
         <CheckoutToggle defaultEnabled={checkoutEnabled} />
+      </section>
+
+      {/* UPI QR Code */}
+      <section className="space-y-2">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            UPI QR Code
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Upload your UPI payment QR code. This will be shown to members
+            during payment instead of the auto-generated QR.
+          </p>
+        </div>
+        <UpiQrUpload defaultImageUrl={workspace.upiQrImageUrl ?? null} />
+      </section>
+
+      {/* WhatsApp Message Template */}
+      <section className="space-y-2">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            WhatsApp Message
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Customize the renewal reminder message sent via WhatsApp.
+          </p>
+        </div>
+        <WhatsappTemplateEditor
+          defaultTemplate={workspace.whatsappTemplate ?? null}
+        />
       </section>
     </div>
   );

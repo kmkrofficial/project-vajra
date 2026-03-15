@@ -55,6 +55,8 @@ export default async function MembersPage() {
         defaultBranchId={effectiveBranchId}
         ownerUpiId={workspace.ownerUpiId}
         gymName={workspace.name}
+        upiQrImageUrl={workspace.upiQrImageUrl}
+        whatsappTemplate={workspace.whatsappTemplate}
       />
     </div>
   );

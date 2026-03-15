@@ -66,12 +66,16 @@ export function MembersList({
   defaultBranchId,
   ownerUpiId,
   gymName,
+  upiQrImageUrl,
+  whatsappTemplate,
 }: {
   members: Member[];
   plans: Plan[];
   defaultBranchId: string | null;
   ownerUpiId: string | null;
   gymName: string;
+  upiQrImageUrl?: string | null;
+  whatsappTemplate?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -97,6 +101,7 @@ export function MembersList({
           defaultBranchId={defaultBranchId}
           ownerUpiId={ownerUpiId}
           gymName={gymName}
+          upiQrImageUrl={upiQrImageUrl}
         />
       </div>
 
@@ -287,7 +292,8 @@ export function MembersList({
                         },
                         ownerUpiId ?? "",
                         cheapestPlan?.price ?? 0,
-                        gymName
+                        gymName,
+                        whatsappTemplate
                       );
                       window.open(url, "_blank", "noopener,noreferrer");
                     }}

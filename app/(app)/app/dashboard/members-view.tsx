@@ -62,6 +62,8 @@ export function MembersView({
   ownerUpiId,
   gymName,
   role,
+  upiQrImageUrl,
+  whatsappTemplate,
 }: {
   members: Member[];
   plans: Plan[];
@@ -69,6 +71,8 @@ export function MembersView({
   ownerUpiId: string | null;
   gymName: string;
   role: WorkspaceRole;
+  upiQrImageUrl?: string | null;
+  whatsappTemplate?: string | null;
 }) {
   const isAdmin = ADMIN_ROLES.includes(role);
   const expiringSoon = getExpiringSoon(members);
@@ -122,7 +126,8 @@ export function MembersView({
                             { name: member.name, phone: member.phone },
                             ownerUpiId ?? "",
                             cheapestPlan?.price ?? 0,
-                            gymName
+                            gymName,
+                            whatsappTemplate
                           );
                           window.open(url, "_blank", "noopener,noreferrer");
                         }}
@@ -158,6 +163,7 @@ export function MembersView({
             defaultBranchId={defaultBranchId}
             ownerUpiId={ownerUpiId}
             gymName={gymName}
+            upiQrImageUrl={upiQrImageUrl}
           />
         </div>
 
