@@ -19,7 +19,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Strip locale prefix for auth logic (e.g. /hi/login → /login)
-  const localePattern = /^\/(hi|kn|ta|te|ml)(\/|$)/;
+  const localePattern = /^\/(en|hi|kn|ta|te|ml)(\/|$)/;
   const strippedPath = pathname.replace(localePattern, "/");
 
   const sessionCookie = getSessionCookie(request);
