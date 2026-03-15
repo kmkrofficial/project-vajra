@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import createMiddleware from "next-intl/middleware";
+import { routing } from "@/i18n/routing";
 
 const PUBLIC_ROUTES = new Set(["/login", "/signup"]);
 
 /** Routes that require auth but NOT a workspace cookie. */
 const NO_WORKSPACE_ROUTES = new Set(["/onboarding", "/workspaces"]);
+
+const intlMiddleware = createMiddleware(routing);
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,19 +18,24 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Strip locale prefix for auth logic (e.g. /hi/login → /login)
+  const localePattern = /^\/(hi|kn|ta|te|ml)(\/|$)/;
+  const strippedPath = pathname.replace(localePattern, "/");
+
   const sessionCookie = getSessionCookie(request);
 
   // If the user is authenticated and hitting a public auth page, redirect away
-  if (sessionCookie && PUBLIC_ROUTES.has(pathname)) {
+  if (sessionCookie && PUBLIC_ROUTES.has(strippedPath)) {
     return NextResponse.redirect(new URL("/workspaces", request.url));
   }
 
   // If the user is NOT authenticated and hitting a protected route, redirect to login
-  if (!sessionCookie && !PUBLIC_ROUTES.has(pathname) && pathname !== "/") {
+  if (!sessionCookie && !PUBLIC_ROUTES.has(strippedPath) && strippedPath !== "/") {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  // Let next-intl handle locale detection and prefix
+  return intlMiddleware(request);
 }
 
 export const config = {

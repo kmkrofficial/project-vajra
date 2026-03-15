@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { WorkspaceProvider } from "@/components/providers/workspace-provider";
-import cfg from "@/lib/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,20 +31,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        <meta name="theme-color" content="#09090b" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-      </head>
-      <body className="antialiased">
-        <ThemeProvider>
-          <WorkspaceProvider cookieMaxAge={cfg.auth.workspaceCookieMaxAge}>
-            {children}
-          </WorkspaceProvider>
-          <Toaster richColors position="bottom-right" />
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+  return children;
 }

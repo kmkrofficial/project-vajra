@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { ChevronsUpDown, Building2, Loader2 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
@@ -31,6 +32,7 @@ export function WorkspaceSwitcher({
   const { activeWorkspaceId, setWorkspace } = useWorkspace();
   const [isPending, startTransition] = useTransition();
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const t = useTranslations("workspaces");
 
   const current = workspaces.find((w) => w.id === activeWorkspaceId);
 
@@ -44,11 +46,11 @@ export function WorkspaceSwitcher({
       if (result.success) {
         // Update client-side context with the server-resolved branchId
         setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
-        toast.success(`Switched to ${ws.name}`);
+        toast.success(t("switchedTo", { name: ws.name }));
         router.push("/app/dashboard");
         router.refresh();
       } else {
-        toast.error(result.error ?? "Failed to switch workspace.");
+        toast.error(result.error ?? t("switchFailed"));
       }
       setSwitchingId(null);
     });
@@ -59,7 +61,7 @@ export function WorkspaceSwitcher({
       <div className="flex items-center gap-2 px-3 py-2">
         <Building2 className="size-4 text-muted-foreground" strokeWidth={1.5} />
         <span className="truncate text-sm font-medium text-foreground">
-          {current?.name ?? "My Gym"}
+          {current?.name ?? t("myGym")}
         </span>
       </div>
     );
@@ -75,7 +77,7 @@ export function WorkspaceSwitcher({
       >
         <Building2 className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         <span className="flex-1 truncate text-sm font-medium text-foreground">
-          {isPending ? "Switching…" : current?.name ?? "Select Gym"}
+          {isPending ? t("switching") : current?.name ?? t("selectGym")}
         </span>
         {isPending ? (
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
@@ -84,7 +86,7 @@ export function WorkspaceSwitcher({
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-52">
-        <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("switchOrganization")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {workspaces.map((ws) => (
           <DropdownMenuItem

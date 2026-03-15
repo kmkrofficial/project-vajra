@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -14,31 +13,33 @@ import {
   FileText,
 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "MANAGER"];
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ElementType;
   adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
-  { label: "Members", href: "/app/members", icon: Users },
-  { label: "Employees", href: "/app/employees", icon: UserCog, adminOnly: true },
-  { label: "Analytics", href: "/app/analytics", icon: BarChart3, adminOnly: true },
-  { label: "Audit Logs", href: "/app/audit-logs", icon: FileText, adminOnly: true },
-  { label: "Branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
-  { label: "Manage Plans", href: "/app/settings/plans", icon: ClipboardList, adminOnly: true },
-  { label: "Settings", href: "/app/settings", icon: Settings, adminOnly: true },
+  { labelKey: "dashboard", href: "/app/dashboard", icon: LayoutDashboard },
+  { labelKey: "members", href: "/app/members", icon: Users },
+  { labelKey: "employees", href: "/app/employees", icon: UserCog, adminOnly: true },
+  { labelKey: "analytics", href: "/app/analytics", icon: BarChart3, adminOnly: true },
+  { labelKey: "auditLogs", href: "/app/audit-logs", icon: FileText, adminOnly: true },
+  { labelKey: "branches", href: "/app/branches", icon: GitBranch, adminOnly: true },
+  { labelKey: "managePlans", href: "/app/settings/plans", icon: ClipboardList, adminOnly: true },
+  { labelKey: "settings", href: "/app/settings", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { role } = useWorkspace();
+  const t = useTranslations("nav");
   const isAdmin = role ? ADMIN_ROLES.includes(role) : false;
 
   const visibleItems = NAV_ITEMS.filter(
@@ -75,7 +76,7 @@ export function AppSidebar() {
               )}
             >
               <item.icon className="size-4" strokeWidth={1.5} />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
@@ -60,6 +61,7 @@ export function AddMemberSheet({
   defaultPlanDurationDays?: number;
 }) {
   const router = useRouter();
+  const t = useTranslations("addMember");
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("form");
   const [loading, setLoading] = useState(false);
@@ -139,7 +141,7 @@ export function AddMemberSheet({
     );
 
     if (result.success) {
-      toast.success("Payment recorded! Member is now ACTIVE.");
+      toast.success(t("paymentRecorded"));
       setOpen(false);
       resetState();
       router.refresh();
@@ -168,9 +170,9 @@ export function AddMemberSheet({
         {step === "form" ? (
           <>
             <SheetHeader>
-              <SheetTitle>New Member</SheetTitle>
+              <SheetTitle>{t("title")}</SheetTitle>
               <SheetDescription>
-                Enter member details and select a plan.
+                {t("description")}
               </SheetDescription>
             </SheetHeader>
             <form
@@ -178,58 +180,58 @@ export function AddMemberSheet({
               className="space-y-4 px-4 pb-4"
             >
               <FormField
-                label="Name"
+                label={t("name")}
                 htmlFor="sheet-name"
                 required
-                tooltip="Member's full name as shown in records"
-                constraint="Min 2 characters"
+                tooltip={t("nameTooltip")}
+                constraint={t("nameConstraint")}
                 error={fieldErrors.name}
               >
                 <Input
                   id="sheet-name"
                   name="name"
-                  placeholder="Full Name"
+                  placeholder={t("namePlaceholder")}
                   required
                 />
               </FormField>
 
               <FormField
-                label="Phone"
+                label={t("phone")}
                 htmlFor="sheet-phone"
                 required
-                tooltip="10-digit Indian mobile number for WhatsApp reminders"
-                constraint="10 digits"
+                tooltip={t("phoneTooltip")}
+                constraint={t("phoneConstraint")}
                 error={fieldErrors.phone}
               >
                 <Input
                   id="sheet-phone"
                   name="phone"
-                  placeholder="9876543210"
+                  placeholder={t("phonePlaceholder")}
                   required
                 />
               </FormField>
 
               <FormField
-                label="Email"
+                label={t("email")}
                 htmlFor="sheet-email"
                 optional
-                tooltip="Used for email notifications if configured"
+                tooltip={t("emailTooltip")}
                 error={fieldErrors.email}
               >
                 <Input
                   id="sheet-email"
                   name="email"
                   type="email"
-                  placeholder="member@example.com"
+                  placeholder={t("emailPlaceholder")}
                 />
               </FormField>
 
               <FormField
-                label="Kiosk PIN"
+                label={t("kioskPin")}
                 htmlFor="sheet-kiosk-pin"
                 optional
-                tooltip="4-digit PIN for self-service kiosk check-in"
-                constraint="Exactly 4 digits. Leave blank to auto-generate."
+                tooltip={t("kioskPinTooltip")}
+                constraint={t("kioskPinConstraint")}
                 error={fieldErrors.kioskPin}
               >
                 <Input
@@ -237,15 +239,15 @@ export function AddMemberSheet({
                   name="kioskPin"
                   inputMode="numeric"
                   maxLength={4}
-                  placeholder="e.g. 1234"
+                  placeholder={t("kioskPinPlaceholder")}
                   data-testid="sheet-kiosk-pin"
                 />
               </FormField>
 
               <FormField
-                label="Plan"
+                label={t("plan")}
                 required
-                tooltip="Membership plan determines price and duration"
+                tooltip={t("planTooltip")}
                 error={fieldErrors.planId}
               >
                 <Select
@@ -253,7 +255,7 @@ export function AddMemberSheet({
                   onValueChange={(v) => setSelectedPlanId(v ?? "")}
                 >
                   <SelectTrigger data-testid="sheet-plan-select">
-                    <SelectValue placeholder="Select a plan" />
+                    <SelectValue placeholder={t("selectPlan")} />
                   </SelectTrigger>
                   <SelectContent>
                     {plans.map((plan) => {
@@ -274,17 +276,16 @@ export function AddMemberSheet({
                 disabled={loading}
                 data-testid="sheet-submit-member"
               >
-                {loading ? "Creating…" : "Proceed to Payment"}
+                {loading ? t("creating") : t("proceedToPayment")}
               </Button>
             </form>
           </>
         ) : (
           <>
             <SheetHeader>
-              <SheetTitle>Collect Payment</SheetTitle>
+              <SheetTitle>{t("collectPayment")}</SheetTitle>
               <SheetDescription>
-                Scan the QR or use the UPI link to collect ₹
-                {paymentData?.amount}
+                {t("scanQr", { amount: paymentData?.amount ?? 0 })}
               </SheetDescription>
             </SheetHeader>
             <div className="flex flex-col items-center space-y-4 px-4 pb-4">
@@ -324,10 +325,10 @@ export function AddMemberSheet({
                   disabled={loading}
                   data-testid="sheet-mark-paid"
                 >
-                  {loading ? "Processing…" : "✓ Verify & Mark as Paid"}
+                  {loading ? t("processing") : t("verifyMarkPaid")}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  Click after confirming payment received
+                  {t("confirmPayment")}
                 </p>
               </div>
             </div>

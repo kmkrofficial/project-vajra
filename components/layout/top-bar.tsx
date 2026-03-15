@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { useTheme } from "next-themes";
 import {
   Dumbbell,
@@ -18,6 +19,7 @@ import {
 import { signOutUser } from "@/lib/actions/auth";
 import { switchWorkspaceAction, switchBranchAction } from "@/lib/actions/workspace";
 import { useWorkspace } from "@/components/providers/workspace-provider";
+import { LanguageSwitcher } from "@/components/features/language-switcher";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -47,6 +49,8 @@ export function TopBar({
   const router = useRouter();
   const { activeWorkspaceId, setWorkspace, clearWorkspace } = useWorkspace();
   const { setTheme } = useTheme();
+  const t = useTranslations("topbar");
+  const tc = useTranslations("common");
   const initials = userName
     .split(" ")
     .map((n) => n[0])
@@ -113,7 +117,7 @@ export function TopBar({
   }, []);
 
   /** Branch label shown in the topbar */
-  const branchLabel = activeBranchName ?? (isAdmin && activeBranchId === null ? "All Branches" : null);
+  const branchLabel = activeBranchName ?? (isAdmin && activeBranchId === null ? tc("allBranches") : null);
 
   /** Render the branch portion of the header (hover-dropdown or static text) */
   function renderBranchSelector() {
@@ -170,7 +174,7 @@ export function TopBar({
                   data-testid="branch-all"
                 >
                   <Building2 className="size-3.5 shrink-0" strokeWidth={1.5} />
-                  All Branches
+                  {tc("allBranches")}
                   {activeBranchId === null && <Check className="ml-auto size-3.5" strokeWidth={2} />}
                 </button>
               )}
@@ -224,7 +228,7 @@ export function TopBar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" sideOffset={8}>
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Switch Gym</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("switchGym")}</DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             {workspaces.map((ws) => (
@@ -250,8 +254,11 @@ export function TopBar({
         {renderBranchSelector()}
       </div>
 
-      {/* Right: Theme toggle + User menu */}
+      {/* Right: Language + Theme toggle + User menu */}
       <div className="flex items-center gap-1">
+
+        {/* Language switcher */}
+        <LanguageSwitcher />
 
         {/* Theme toggle */}
         <DropdownMenu>
@@ -262,20 +269,20 @@ export function TopBar({
           >
             <Sun className="size-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" strokeWidth={1.5} />
             <Moon className="absolute size-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" strokeWidth={1.5} />
-            <span className="sr-only">Toggle theme</span>
+            <span className="sr-only">{t("toggleTheme")}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={8}>
             <DropdownMenuItem onClick={() => setTheme("light")}>
               <Sun className="size-4" strokeWidth={1.5} />
-              Light
+              {t("light")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme("dark")}>
               <Moon className="size-4" strokeWidth={1.5} />
-              Dark
+              {t("dark")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme("system")}>
               <Monitor className="size-4" strokeWidth={1.5} />
-              System
+              {tc("system")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -298,12 +305,12 @@ export function TopBar({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/app/settings/profile")} data-testid="user-menu-profile">
               <UserPen className="size-4" strokeWidth={1.5} />
-              My Profile
+              {t("myProfile")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut className="size-4" strokeWidth={1.5} />
-              Log out
+              {t("logOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

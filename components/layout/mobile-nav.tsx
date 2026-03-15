@@ -1,28 +1,29 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import {
   LayoutDashboard,
   Users,
   Settings,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface TabItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ElementType;
 }
 
 const TABS: TabItem[] = [
-  { label: "Home", href: "/app/dashboard", icon: LayoutDashboard },
-  { label: "Members", href: "/app/members", icon: Users },
-  { label: "Settings", href: "/app/settings/plans", icon: Settings },
+  { labelKey: "home", href: "/app/dashboard", icon: LayoutDashboard },
+  { labelKey: "members", href: "/app/members", icon: Users },
+  { labelKey: "settings", href: "/app/settings/plans", icon: Settings },
 ];
 
 export function MobileNav() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   return (
     <nav
@@ -44,7 +45,7 @@ export function MobileNav() {
             )}
           >
             <tab.icon className="size-5" strokeWidth={1.5} />
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         );
       })}
