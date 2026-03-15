@@ -20,8 +20,11 @@ import {
   Users,
   AlertTriangle,
   ClipboardCheck,
+  Activity,
 } from "lucide-react";
 import { MembersView } from "./members-view";
+import { HourlyActivityChart } from "./hourly-activity-chart";
+import { getHourlyActivity, getTodayCheckinCount } from "@/lib/dal/attendance";
 
 /** Roles that can see revenue stats and all-branches filter. */
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
@@ -44,9 +47,11 @@ export default async function DashboardPage() {
     ? ws.branchId ?? workspace.branches[0]?.id ?? null
     : workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
-  const [plans, allMembers] = await Promise.all([
+  const [plans, allMembers, hourlyActivity, todayCheckins] = await Promise.all([
     getActivePlans(ws.workspaceId),
     getMembers(ws.workspaceId),
+    getHourlyActivity(ws.workspaceId),
+    getTodayCheckinCount(ws.workspaceId),
   ]);
 
   // For non-admin roles, filter members to only their branch
@@ -184,6 +189,22 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* ── Hourly Activity Chart ──────────────────────────────── */}
+      <Card data-testid="hourly-activity-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+            <Activity className="size-4" />
+            Today&apos;s Hourly Activity
+            <span className="ml-auto text-xs text-foreground">
+              {todayCheckins} check-in{todayCheckins !== 1 ? "s" : ""}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HourlyActivityChart data={hourlyActivity} />
+        </CardContent>
+      </Card>
 
       {/* ── Members view with expiring list ──────────────────────── */}
       <MembersView

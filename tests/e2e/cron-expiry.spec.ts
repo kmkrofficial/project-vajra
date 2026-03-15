@@ -96,4 +96,90 @@ test.describe("Member expiration cron", () => {
 
     await sql.end();
   });
+
+  test("idempotency: running cron twice does not re-process expired members", async () => {
+    const sql = getTestDb();
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Seed an ACTIVE member with past expiry
+    await sql`
+      INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
+      VALUES (${workspaceId}, ${branchId}, 'Idempotent User', '8000000010', '4444', 'ACTIVE', ${yesterday})
+    `;
+
+    // First run
+    const firstRun = await sql`
+      UPDATE members
+      SET status = 'EXPIRED'
+      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${workspaceId} AND phone = '8000000010'
+      RETURNING id
+    `;
+    expect(firstRun.length).toBe(1);
+
+    // Second run — should return 0 because member is already EXPIRED
+    const secondRun = await sql`
+      UPDATE members
+      SET status = 'EXPIRED'
+      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${workspaceId} AND phone = '8000000010'
+      RETURNING id
+    `;
+    expect(secondRun.length).toBe(0);
+
+    await sql.end();
+  });
+
+  test("member with null expiry_date is not affected", async () => {
+    const sql = getTestDb();
+
+    // Seed a member with NULL expiry_date
+    const [member] = await sql`
+      INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
+      VALUES (${workspaceId}, ${branchId}, 'No Expiry User', '8000000020', '5555', 'ACTIVE', ${null})
+      RETURNING id
+    `;
+
+    // Run expiration
+    await sql`
+      UPDATE members
+      SET status = 'EXPIRED'
+      WHERE status = 'ACTIVE' AND expiry_date < now()
+    `;
+
+    // Verify: member should still be ACTIVE (null < now() is false in SQL)
+    const [row] = await sql`
+      SELECT status FROM members WHERE id = ${member.id}
+    `;
+    expect(row.status).toBe("ACTIVE");
+
+    await sql.end();
+  });
+
+  test("already-EXPIRED member is not re-processed", async () => {
+    const sql = getTestDb();
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Seed an already-EXPIRED member
+    const [member] = await sql`
+      INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
+      VALUES (${workspaceId}, ${branchId}, 'Already Expired', '8000000030', '6666', 'EXPIRED', ${yesterday})
+      RETURNING id
+    `;
+
+    // Run the cron query
+    const result = await sql`
+      UPDATE members
+      SET status = 'EXPIRED'
+      WHERE status = 'ACTIVE' AND expiry_date < now() AND id = ${member.id}
+      RETURNING id
+    `;
+
+    // Should return 0 — already EXPIRED, not ACTIVE
+    expect(result.length).toBe(0);
+
+    await sql.end();
+  });
 });

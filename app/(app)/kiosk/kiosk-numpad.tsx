@@ -1,31 +1,29 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { processKioskCheckin } from "@/lib/actions/kiosk";
-import { verifyKioskPin } from "@/lib/actions/settings";
 
 type KioskState = "idle" | "loading" | "success" | "error";
 
 interface KioskNumpadProps {
   branchId: string;
+  checkoutEnabled: boolean;
 }
 
-export default function KioskNumpad({ branchId }: KioskNumpadProps) {
-  const router = useRouter();
+export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadProps) {
   const [pin, setPin] = useState("");
   const [state, setState] = useState<KioskState>("idle");
   const [memberName, setMemberName] = useState("");
+  const [kioskAction, setKioskAction] = useState<"checkin" | "checkout">("checkin");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showExitModal, setShowExitModal] = useState(false);
-  const [exitCode, setExitCode] = useState("");
 
   const resetAfterDelay = useCallback(() => {
     setTimeout(() => {
       setPin("");
       setMemberName("");
+      setKioskAction("checkin");
       setErrorMessage("");
       setState("idle");
     }, 3000);
@@ -36,10 +34,11 @@ export default function KioskNumpad({ branchId }: KioskNumpadProps) {
 
     setState("loading");
 
-    const result = await processKioskCheckin(pin, branchId);
+    const result = await processKioskCheckin(pin, branchId, checkoutEnabled);
 
     if (result.success) {
       setMemberName(result.memberName);
+      setKioskAction(result.action);
       setState("success");
     } else {
       setErrorMessage(result.error);
@@ -72,7 +71,6 @@ export default function KioskNumpad({ branchId }: KioskNumpadProps) {
   // Physical keyboard support
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (showExitModal) return;
       if (e.key >= "0" && e.key <= "9") {
         handleKey(e.key);
       } else if (e.key === "Backspace" || e.key === "Escape") {
@@ -84,33 +82,17 @@ export default function KioskNumpad({ branchId }: KioskNumpadProps) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleKey, showExitModal]);
-
-  const [exitLoading, setExitLoading] = useState(false);
-  const [exitError, setExitError] = useState("");
-
-  async function handleExitSubmit() {
-    if (!exitCode) return;
-    setExitLoading(true);
-    setExitError("");
-
-    const result = await verifyKioskPin(exitCode);
-    if (result.success) {
-      router.push("/app/dashboard");
-    } else {
-      setExitError(result.error ?? "Incorrect PIN.");
-      setExitCode("");
-    }
-    setExitLoading(false);
-  }
+  }, [handleKey]);
 
   // Background color based on state
   const bgColor =
-    state === "success"
-      ? "bg-green-500"
-      : state === "error"
-        ? "bg-red-500"
-        : "bg-background";
+    state === "success" && kioskAction === "checkout"
+      ? "bg-blue-500"
+      : state === "success"
+        ? "bg-green-500"
+        : state === "error"
+          ? "bg-red-500"
+          : "bg-background";
 
   return (
     <div
@@ -118,57 +100,14 @@ export default function KioskNumpad({ branchId }: KioskNumpadProps) {
       data-testid="kiosk-root"
       data-kiosk-state={state}
     >
-      {/* Hidden exit button — opacity-0, top-right */}
-      <button
-        className="absolute right-2 top-2 size-10 opacity-0"
-        onClick={() => setShowExitModal(true)}
-        aria-label="Staff Exit"
+      {/* Back to dashboard link — top-right corner */}
+      <Link
+        href="/app/dashboard"
+        className="absolute right-3 top-3 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         data-testid="kiosk-exit-btn"
-      />
-
-      {/* Exit modal */}
-      {showExitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-          <div className="w-72 space-y-4 rounded-xl bg-card p-6 text-center">
-            <p className="text-sm font-medium text-foreground">
-              Enter staff exit code
-            </p>
-            <Input
-              type="password"
-              maxLength={6}
-              value={exitCode}
-              onChange={(e) => setExitCode(e.target.value)}
-              className="text-center text-lg"
-              autoFocus
-              data-testid="kiosk-exit-input"
-            />
-            {exitError && (
-              <p className="text-xs text-destructive">{exitError}</p>
-            )}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowExitModal(false);
-                  setExitCode("");
-                  setExitError("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleExitSubmit}
-                disabled={exitLoading}
-                data-testid="kiosk-exit-submit"
-              >
-                {exitLoading ? "…" : "Exit"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      >
+        ← Dashboard
+      </Link>
 
       {/* Success overlay */}
       {state === "success" && (
@@ -187,7 +126,12 @@ export default function KioskNumpad({ branchId }: KioskNumpadProps) {
           >
             <path d="M20 6 9 17l-5-5" />
           </svg>
-          <p className="text-5xl font-bold">Welcome, {memberName}!</p>
+          <p className="text-5xl font-bold">
+            {kioskAction === "checkout" ? `Goodbye, ${memberName}!` : `Welcome, ${memberName}!`}
+          </p>
+          <p className="mt-2 text-2xl font-medium opacity-80">
+            {kioskAction === "checkout" ? "Checked out" : "Checked in"}
+          </p>
         </div>
       )}
 

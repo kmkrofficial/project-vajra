@@ -93,7 +93,7 @@ export const gymWorkspaces = pgTable("gym_workspaces", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-/** Physical gym location within a workspace. Supports GPS coordinates and per-branch kiosk PINs. */
+/** Physical gym location within a workspace. Supports GPS coordinates for geofencing. */
 export const branches = pgTable("branches", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id")
@@ -101,7 +101,6 @@ export const branches = pgTable("branches", {
     .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   contactPhone: text("contact_phone"),
-  kioskPin: varchar("kiosk_pin", { length: 6 }),
   latitude: numeric("latitude", { precision: 10, scale: 7 }),
   longitude: numeric("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -252,9 +251,32 @@ export const employeeInvites = pgTable("employee_invites", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Attendance ─────────────────────────────────────────────────────────────
+
+/**
+ * Member attendance log. Records check-in and check-out timestamps.
+ * A row is created on kiosk check-in with `checkedOutAt` NULL.
+ * The next PIN entry by the same member closes the open session (sets `checkedOutAt`).
+ * If no checkout occurs, it's an open session (gym can auto-close via cron later).
+ */
+export const attendance = pgTable("attendance", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id")
+    .notNull()
+    .references(() => members.id, { onDelete: "cascade" }),
+  checkedInAt: timestamp("checked_in_at").notNull().defaultNow(),
+  checkedOutAt: timestamp("checked_out_at"),
+});
+
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-/** Per-branch configuration: kiosk PIN (scrypt-hashed), theme, default plan. Falls back to workspace-level. */
+/** Per-branch configuration: checkout toggle, theme, default plan. Falls back to workspace-level. */
 export const configuration = pgTable("configuration", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id")
@@ -263,7 +285,7 @@ export const configuration = pgTable("configuration", {
   branchId: uuid("branch_id").references(() => branches.id, {
     onDelete: "cascade",
   }),
-  kioskPin: text("kiosk_pin"), // hashed — never plain text
+  checkoutEnabled: boolean("checkout_enabled").notNull().default(false),
   themeMode: varchar("theme_mode", { length: 20 }).notNull().default("system"),
   defaultPlanId: uuid("default_plan_id").references(() => plans.id, {
     onDelete: "set null",
@@ -358,6 +380,7 @@ export const memberRelations = relations(members, ({ one, many }) => ({
     references: [branches.id],
   }),
   transactions: many(transactions),
+  attendanceLogs: many(attendance),
 }));
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
@@ -425,6 +448,21 @@ export const employeeInviteRelations = relations(employeeInvites, ({ one }) => (
   workspace: one(gymWorkspaces, {
     fields: [employeeInvites.workspaceId],
     references: [gymWorkspaces.id],
+  }),
+}));
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  workspace: one(gymWorkspaces, {
+    fields: [attendance.workspaceId],
+    references: [gymWorkspaces.id],
+  }),
+  branch: one(branches, {
+    fields: [attendance.branchId],
+    references: [branches.id],
+  }),
+  member: one(members, {
+    fields: [attendance.memberId],
+    references: [members.id],
   }),
 }));
 

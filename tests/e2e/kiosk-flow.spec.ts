@@ -1,18 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { randomBytes, scryptSync } from "node:crypto";
 import {
   seedWorkspaceForUser,
   seedMember,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
-
-/** Hash a PIN the same way the app does (scrypt + random salt → "salt:hash"). */
-function hashPin(pin: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(pin, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
 
@@ -28,36 +21,21 @@ let userId: string;
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
-test.describe("Kiosk Self-Service Loop", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up owner via UI
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(OWNER.name);
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await page.close();
-
-    // Get user ID and mark email verified
-    const sql = getTestDb();
-    const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    userId = row.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+test.describe.serial("Kiosk Self-Service Loop", () => {
+  test.beforeAll(async () => {
+    // Create user directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(OWNER);
 
     // Seed workspace
     const seeded = await seedWorkspaceForUser(userId);
     workspaceId = seeded.workspaceId;
     branchId = seeded.branchId;
 
-    // Set a kiosk exit PIN on the configuration table (hashed, like the app stores it)
-    const hashedPin = hashPin("1234");
+    // Create configuration row with checkout enabled for test
     const sql2 = getTestDb();
     await sql2`
-      INSERT INTO configuration (workspace_id, branch_id, kiosk_pin, theme_mode)
-      VALUES (${workspaceId}, ${branchId}, ${hashedPin}, 'system')
+      INSERT INTO configuration (workspace_id, branch_id, checkout_enabled, theme_mode)
+      VALUES (${workspaceId}, ${branchId}, true, 'system')
       ON CONFLICT DO NOTHING
     `;
     await sql2.end();
@@ -121,14 +99,62 @@ test.describe("Kiosk Self-Service Loop", () => {
     // Submit
     await page.getByTestId("kiosk-key-submit").click();
 
-    // Should show success message with member name
+    // Should show success with "Checked in"
     await expect(page.getByTestId("kiosk-success")).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByText("Welcome, Kiosk Gym Member!")).toBeVisible();
+    await expect(page.getByText("Checked in")).toBeVisible();
+
+    // Verify attendance record was created in DB
+    const sql = getTestDb();
+    const [att] = await sql`
+      SELECT id, checked_out_at FROM attendance
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY checked_in_at DESC LIMIT 1
+    `;
+    expect(att).toBeTruthy();
+    expect(att.checked_out_at).toBeNull();
+    await sql.end();
 
     // Wait for auto-clear (success goes back to idle after a timeout)
-    // The PIN display should return to empty after the success state clears
+    await expect(page.getByTestId("kiosk-pin-display")).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("second PIN entry checks out the member", async ({
+    page,
+  }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({
+      timeout: 5_000,
+    });
+
+    // Enter same PIN again — should check out
+    await page.getByTestId("kiosk-key-5").click();
+    await page.getByTestId("kiosk-key-6").click();
+    await page.getByTestId("kiosk-key-7").click();
+    await page.getByTestId("kiosk-key-8").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-success")).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByText("Goodbye, Kiosk Gym Member!")).toBeVisible();
+    await expect(page.getByText("Checked out")).toBeVisible();
+
+    // Verify attendance record now has a checkout timestamp
+    const sql = getTestDb();
+    const [att] = await sql`
+      SELECT checked_out_at FROM attendance
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY checked_in_at DESC LIMIT 1
+    `;
+    expect(att.checked_out_at).not.toBeNull();
+    await sql.end();
+
     await expect(page.getByTestId("kiosk-pin-display")).toBeVisible({
       timeout: 10_000,
     });
@@ -143,19 +169,127 @@ test.describe("Kiosk Self-Service Loop", () => {
       timeout: 5_000,
     });
 
-    // Click the hidden exit button (top-right, opacity-0 but clickable)
-    await page.getByTestId("kiosk-exit-btn").click({ force: true });
-
-    // Exit modal should appear
-    await expect(page.getByTestId("kiosk-exit-input")).toBeVisible({
-      timeout: 3_000,
-    });
-
-    // Type the exit PIN
-    await page.getByTestId("kiosk-exit-input").fill("1234");
-    await page.getByTestId("kiosk-exit-submit").click();
+    // Click the "← Dashboard" link (top-right corner)
+    await page.getByTestId("kiosk-exit-btn").click();
 
     // Should navigate back to dashboard
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  // ── Edge Cases ──────────────────────────────────────────────────────
+
+  test("kiosk shows error for non-existent PIN", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    // Enter a PIN that doesn't match any member
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-1").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+  });
+
+  test("submit button is disabled when less than 4 digits entered", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    // Enter only 3 digits
+    await page.getByTestId("kiosk-key-1").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-3").click();
+
+    // Submit button should be disabled
+    await expect(page.getByTestId("kiosk-key-submit")).toBeDisabled();
+  });
+
+  test("clear button resets PIN entry", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    // Enter 3 digits then clear
+    await page.getByTestId("kiosk-key-1").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-3").click();
+    await page.getByTestId("kiosk-key-clear").click();
+
+    // Submit should be disabled again (PIN is empty)
+    await expect(page.getByTestId("kiosk-key-submit")).toBeDisabled();
+  });
+
+  test("kiosk rejects PENDING_PAYMENT member PIN", async ({ page }) => {
+    // Seed a PENDING_PAYMENT member
+    await seedMember({
+      workspaceId,
+      branchId,
+      name: "Pending Member",
+      phone: "9000000088",
+      checkinPin: "4321",
+      status: "PENDING_PAYMENT",
+    });
+
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    await page.getByTestId("kiosk-key-4").click();
+    await page.getByTestId("kiosk-key-3").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-1").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+  });
+
+  test("kiosk rejects EXPIRED member PIN", async ({ page }) => {
+    const pastExpiry = new Date();
+    pastExpiry.setDate(pastExpiry.getDate() - 10);
+    await seedMember({
+      workspaceId,
+      branchId,
+      name: "Expired Kiosk User",
+      phone: "9000000077",
+      checkinPin: "8765",
+      status: "EXPIRED",
+      expiryDate: pastExpiry,
+    });
+
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    await page.getByTestId("kiosk-key-8").click();
+    await page.getByTestId("kiosk-key-7").click();
+    await page.getByTestId("kiosk-key-6").click();
+    await page.getByTestId("kiosk-key-5").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+  });
+
+  test("kiosk auto-returns to idle after error overlay", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    // Enter invalid PIN
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-0").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
+
+    // Should auto-return to idle after timeout (3s)
+    await expect(page.getByTestId("kiosk-pin-display")).toBeVisible({ timeout: 10_000 });
   });
 });

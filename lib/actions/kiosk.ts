@@ -5,45 +5,22 @@ import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getSession } from "@/lib/actions/auth";
 import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
 import { insertAuditLog } from "@/lib/dal/audit";
+import { findOpenSession, checkIn, checkOut } from "@/lib/dal/attendance";
 import { logger } from "@/lib/logger";
-import { setupKioskPin, verifyKioskPin } from "@/lib/actions/settings";
 
 type KioskResult =
-  | { success: true; memberName: string }
+  | { success: true; memberName: string; action: "checkin" | "checkout" }
   | { success: false; error: string };
 
-type ActionResult = { success: boolean; error?: string };
-
 /**
- * Set the kiosk exit PIN for a branch.
- * Delegates to setupKioskPin which stores a hashed PIN.
- * Only SUPER_ADMIN and MANAGER roles can set this.
- */
-export async function setKioskPin(
-  _branchId: string,
-  pin: string
-): Promise<ActionResult> {
-  return setupKioskPin(pin);
-}
-
-/**
- * Verify the kiosk exit PIN for a branch.
- * Delegates to verifyKioskPin which compares against hashed PIN.
- */
-export async function verifyKioskExitPin(
-  _branchId: string,
-  pin: string
-): Promise<ActionResult> {
-  return verifyKioskPin(pin);
-}
-
-/**
- * Process a kiosk check-in by PIN.
- * Looks up the member in the given branch; returns success only if ACTIVE.
+ * Process a kiosk PIN entry.
+ * If `checkoutEnabled` is true and the member has an open session → check them out.
+ * Otherwise → always check in (creates a new attendance row each time).
  */
 export async function processKioskCheckin(
   pin: string,
-  branchId: string
+  branchId: string,
+  checkoutEnabled: boolean = false
 ): Promise<KioskResult> {
   if (!pin || pin.length !== 4) {
     return { success: false, error: "Invalid PIN format" };
@@ -64,18 +41,42 @@ export async function processKioskCheckin(
       return { success: false, error: "Expired or Invalid PIN" };
     }
 
-    // Member is active — check-in is valid
+    // Check for an existing open session (check-in without check-out)
+    if (checkoutEnabled) {
+      const openSession = await findOpenSession(member.id, branchId);
+
+      if (openSession) {
+        // Close the session — this is a check-out
+        await checkOut(openSession.id);
+
+        await insertAuditLog({
+          workspaceId: member.workspaceId,
+          userId: null,
+          action: "KIOSK_CHECKOUT",
+          entityType: "MEMBER",
+          entityId: member.id,
+          details: { branchId, attendanceId: openSession.id },
+        });
+
+        return { success: true, memberName: member.name, action: "checkout" };
+      }
+    }
+
+    // No open session — check in
+    const attendanceId = await checkIn(member.workspaceId, branchId, member.id);
+
     await insertAuditLog({
       workspaceId: member.workspaceId,
       userId: null,
       action: "KIOSK_CHECKIN",
       entityType: "MEMBER",
       entityId: member.id,
-      details: { branchId },
+      details: { branchId, attendanceId },
     });
-    return { success: true, memberName: member.name };
+
+    return { success: true, memberName: member.name, action: "checkin" };
   } catch (err) {
-    logger.error({ err, action: "kiosk_checkin", branchId }, "Kiosk check-in failed");
+    logger.error({ err, action: "kiosk_checkin", branchId }, "Kiosk PIN processing failed");
     return { success: false, error: "Check-in failed. Please try again." };
   }
 }

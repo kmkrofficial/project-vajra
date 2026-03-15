@@ -7,32 +7,6 @@ import {
 } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
-/** Get the kiosk PIN for a specific branch. Returns null if not set. */
-export async function getBranchKioskPin(
-  branchId: string,
-  workspaceId: string
-): Promise<string | null> {
-  const start = performance.now();
-  try {
-    const [row] = await db
-      .select({ kioskPin: branches.kioskPin })
-      .from(branches)
-      .where(
-        and(eq(branches.id, branchId), eq(branches.workspaceId, workspaceId))
-      )
-      .limit(1);
-
-    logger.debug(
-      { fn: "getBranchKioskPin", branchId, ms: Math.round(performance.now() - start) },
-      "DAL query complete"
-    );
-    return row?.kioskPin ?? null;
-  } catch (err) {
-    logger.error({ err, fn: "getBranchKioskPin", branchId }, "DAL query failed");
-    throw err;
-  }
-}
-
 /** Set/update the kiosk PIN for a branch. */
 export async function setBranchKioskPin(
   branchId: string,

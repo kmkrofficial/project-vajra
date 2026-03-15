@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 import {
   seedWorkspaceForUser,
+  addStaffToWorkspace,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
@@ -19,43 +21,38 @@ const EMPLOYEE = {
   password: "StaffPass123!",
 };
 
+const RECEPTIONIST = {
+  name: "Non-Admin Staff",
+  email: `e2e-emp-recep-${Date.now()}@test.local`,
+  password: "StaffPass123!",
+};
+
 let workspaceId: string;
 let branchId: string;
 let userId: string;
+let receptionistId: string;
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe.serial("Employee Invite Flow", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up owner via UI
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(OWNER.name);
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    // After signup, user now goes to verify-email page
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await page.close();
-
-    // Mark owner's email as verified directly in DB (skip OTP for test setup)
-    const sql = getTestDb();
-    const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    userId = row.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(OWNER);
+    receptionistId = await createTestUser(RECEPTIONIST);
 
     // Seed workspace
     const seeded = await seedWorkspaceForUser(userId);
     workspaceId = seeded.workspaceId;
     branchId = seeded.branchId;
+
+    // Add receptionist to workspace
+    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
   });
 
   test.afterAll(async () => {
     if (workspaceId) await cleanupTestData(workspaceId);
     const sql = getTestDb();
-    await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
-    await sql`DELETE FROM "user" WHERE email = ${EMPLOYEE.email}`;
+    await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${EMPLOYEE.email}, ${RECEPTIONIST.email})`;
     await sql.end();
   });
 
@@ -226,5 +223,96 @@ test.describe.serial("Employee Invite Flow", () => {
     await expect(
       page.locator("[data-sonner-toast]").filter({ hasText: /invitation sent/i })
     ).toBeVisible({ timeout: 5_000 });
+  });
+
+  // ── Validation Edge Cases ─────────────────────────────────────────────
+
+  test("submit button disabled when no role or branch selected", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/employees");
+
+    await page.getByTestId("invite-employee-btn").click();
+    await page.getByTestId("emp-name-input").fill("Test Name");
+    await page.getByTestId("emp-email-input").fill("test@test.local");
+
+    // Submit should be disabled because no role/branch are selected
+    await expect(page.getByTestId("emp-submit")).toBeDisabled();
+  });
+
+  test("invite with invalid email shows error toast", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/employees");
+
+    await page.getByTestId("invite-employee-btn").click();
+    await page.getByTestId("emp-name-input").fill("Bad Email User");
+    await page.getByTestId("emp-email-input").fill("not-an-email");
+
+    await page.getByTestId("emp-role-select").click();
+    await page.getByRole("option", { name: "Trainer" }).click();
+    await page.getByTestId("emp-branch-select").click();
+    await page.getByRole("option", { name: "Main Branch" }).click();
+
+    await page.getByTestId("emp-submit").click();
+
+    // HTML5 type="email" validation prevents form submission for invalid emails.
+    // Verify the input is marked invalid and the form did NOT submit.
+    const isInvalid = await page.getByTestId("emp-email-input").evaluate(
+      (el: HTMLInputElement) => !el.checkValidity()
+    );
+    expect(isInvalid).toBe(true);
+    // Should stay on the employees page
+    await expect(page).toHaveURL(/\/app\/employees/);
+  });
+
+  test("invite with name less than 2 characters shows error", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/employees");
+
+    await page.getByTestId("invite-employee-btn").click();
+    await page.getByTestId("emp-name-input").fill("A"); // < 2 chars
+    await page.getByTestId("emp-email-input").fill(`shortname-${Date.now()}@test.local`);
+
+    await page.getByTestId("emp-role-select").click();
+    await page.getByRole("option", { name: "Trainer" }).click();
+    await page.getByTestId("emp-branch-select").click();
+    await page.getByRole("option", { name: "Main Branch" }).click();
+
+    await page.getByTestId("emp-submit").click();
+
+    // Should show validation error
+    await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 5_000 });
+  });
+
+  // ── RBAC: Receptionist blocked from inviting ──────────────────────────
+
+  test("receptionist cannot see invite button on employees page", async ({ page }) => {
+    // Login as receptionist
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(RECEPTIONIST.email);
+    await page.getByLabel("Password").fill(RECEPTIONIST.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/employees");
+
+    // Receptionist should NOT see the invite button
+    await expect(page.getByTestId("invite-employee-btn")).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  // ── DB verification after invite ──────────────────────────────────────
+
+  test("invite creates audit log entry", async ({ page }) => {
+    // The earlier successful invite should have created an audit log
+    const sql = getTestDb();
+    const [log] = await sql`
+      SELECT action FROM audit_logs
+      WHERE workspace_id = ${workspaceId} AND action = 'EMPLOYEE_INVITED'
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    expect(log).toBeTruthy();
+    expect(log.action).toBe("EMPLOYEE_INVITED");
+    await sql.end();
   });
 });

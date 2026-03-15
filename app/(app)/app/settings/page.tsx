@@ -3,7 +3,7 @@ import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getWorkspaceConfig } from "@/lib/dal/config";
-import { KioskPinForm } from "./kiosk/kiosk-pin-form";
+import { CheckoutToggle } from "./checkout-toggle";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -21,27 +21,24 @@ export default async function SettingsPage() {
 
   const branchId = ws.branchId ?? workspace.branches[0]?.id ?? null;
   const config = await getWorkspaceConfig(ws.workspaceId, branchId);
-  const hasPin = !!config?.kioskPin;
+  const checkoutEnabled = config?.checkoutEnabled ?? false;
 
   return (
     <div className="space-y-8 p-4 md:p-6" data-testid="settings-page">
       <h1 className="text-xl font-bold text-foreground">Settings</h1>
 
-      {/* Kiosk Exit PIN */}
+      {/* Member Checkout */}
       <section className="space-y-2">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Kiosk Exit PIN</h2>
+          <h2 className="text-base font-semibold text-foreground">
+            Member Check-out
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Staff use this PIN to exit the full-screen kiosk and return to the dashboard.
+            When enabled, a second kiosk PIN entry will check the member out
+            (close their session). When off, the kiosk only records check-ins.
           </p>
         </div>
-        {branchId ? (
-          <KioskPinForm hasExistingPin={hasPin} />
-        ) : (
-          <p className="text-sm text-destructive">
-            No branch found. Create a branch first.
-          </p>
-        )}
+        <CheckoutToggle defaultEnabled={checkoutEnabled} />
       </section>
     </div>
   );

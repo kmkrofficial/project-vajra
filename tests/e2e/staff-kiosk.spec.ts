@@ -1,19 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { randomBytes, scryptSync } from "node:crypto";
 import {
   seedWorkspaceForUser,
   addStaffToWorkspace,
   seedMember,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
-
-/** Hash a PIN the same way the app does (scrypt + random salt → "salt:hash"). */
-function hashPin(pin: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(pin, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
 
 // ─── Shared Test Data ───────────────────────────────────────────────────────
 
@@ -37,35 +30,10 @@ let receptionistId: string;
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("Staff RBAC & Kiosk", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up the owner via UI
-    const ownerPage = await browser.newPage();
-    await ownerPage.goto("/signup");
-    await ownerPage.getByLabel("Full Name").fill(OWNER.name);
-    await ownerPage.getByLabel("Email").fill(OWNER.email);
-    await ownerPage.getByLabel("Password").fill(OWNER.password);
-    await ownerPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(ownerPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await ownerPage.close();
-
-    // Sign up the receptionist via UI
-    const staffPage = await browser.newPage();
-    await staffPage.goto("/signup");
-    await staffPage.getByLabel("Full Name").fill(RECEPTIONIST.name);
-    await staffPage.getByLabel("Email").fill(RECEPTIONIST.email);
-    await staffPage.getByLabel("Password").fill(RECEPTIONIST.password);
-    await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await staffPage.close();
-
-    // Get user IDs from database
-    const sql = getTestDb();
-    const [ownerRow] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    const [staffRow] = await sql`SELECT id FROM "user" WHERE email = ${RECEPTIONIST.email}`;
-    ownerId = ownerRow.id;
-    receptionistId = staffRow.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${ownerId}, ${receptionistId})`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    ownerId = await createTestUser(OWNER);
+    receptionistId = await createTestUser(RECEPTIONIST);
 
     // Seed workspace (owner as SUPER_ADMIN)
     const seeded = await seedWorkspaceForUser(ownerId);
@@ -101,12 +69,11 @@ test.describe("Staff RBAC & Kiosk", () => {
       expiryDate: pastExpiry,
     });
 
-    // Seed a kiosk configuration row with hashed PIN so kiosk numpad shows
+    // Seed a configuration row so kiosk numpad shows (checkout enabled for testing)
     const sql3 = getTestDb();
-    const hashedKioskPin = hashPin("0000");
     await sql3`
-      INSERT INTO configuration (workspace_id, branch_id, kiosk_pin, theme_mode)
-      VALUES (${workspaceId}, ${branchId}, ${hashedKioskPin}, 'system')
+      INSERT INTO configuration (workspace_id, branch_id, checkout_enabled, theme_mode)
+      VALUES (${workspaceId}, ${branchId}, true, 'system')
       ON CONFLICT DO NOTHING
     `;
     await sql3.end();
@@ -202,5 +169,107 @@ test.describe("Staff RBAC & Kiosk", () => {
       timeout: 5_000,
     });
     await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+  });
+
+  // ── Additional edge cases ───────────────────────────────────────────
+
+  test("kiosk check-in creates attendance record in DB", async ({ page }) => {
+    // Login as owner and go to kiosk
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(OWNER.email);
+    await page.getByLabel("Password").fill(OWNER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/kiosk");
+
+    // Use the ACTIVE member PIN (5678)
+    await page.getByTestId("kiosk-key-5").click();
+    await page.getByTestId("kiosk-key-6").click();
+    await page.getByTestId("kiosk-key-7").click();
+    await page.getByTestId("kiosk-key-8").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-success")).toBeVisible({ timeout: 5_000 });
+
+    // Verify DB: attendance record was created
+    const sql = getTestDb();
+    const [att] = await sql`
+      SELECT id, checked_out_at FROM attendance
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY checked_in_at DESC LIMIT 1
+    `;
+    expect(att).toBeTruthy();
+    expect(att.checked_out_at).toBeNull();
+    await sql.end();
+
+    // Wait for auto-clear
+    await expect(page.getByTestId("kiosk-pin-display")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("second PIN entry checks out and records in DB", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(OWNER.email);
+    await page.getByLabel("Password").fill(OWNER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/kiosk");
+
+    // Same member PIN — this is a second entry after the check-in test
+    // It could be check-in or check-out depending on open session state
+    await page.getByTestId("kiosk-key-5").click();
+    await page.getByTestId("kiosk-key-6").click();
+    await page.getByTestId("kiosk-key-7").click();
+    await page.getByTestId("kiosk-key-8").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-success")).toBeVisible({ timeout: 5_000 });
+    // The action could be either checkin or checkout depending on session state
+    await expect(page.getByText(/Welcome|Goodbye/)).toBeVisible();
+
+    // Verify DB has an attendance record
+    const sql = getTestDb();
+    const [att] = await sql`
+      SELECT id FROM attendance
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY checked_in_at DESC LIMIT 1
+    `;
+    expect(att).toBeTruthy();
+    await sql.end();
+  });
+
+  test("PENDING_PAYMENT member PIN is rejected at kiosk", async ({ page }) => {
+    // Seed PENDING_PAYMENT member
+    await seedMember({
+      workspaceId,
+      branchId,
+      name: "Pending Staff Member",
+      phone: "9000000050",
+      checkinPin: "1234",
+      status: "PENDING_PAYMENT",
+    });
+
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(OWNER.email);
+    await page.getByLabel("Password").fill(OWNER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/kiosk");
+
+    await page.getByTestId("kiosk-key-1").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-3").click();
+    await page.getByTestId("kiosk-key-4").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
   });
 });

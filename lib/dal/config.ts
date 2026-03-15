@@ -65,7 +65,7 @@ export async function getWorkspaceConfig(
 export async function upsertWorkspaceConfig(
   workspaceId: string,
   branchId: string | null,
-  data: Partial<Pick<ConfigRow, "kioskPin" | "themeMode" | "defaultPlanId">>
+  data: Partial<Pick<ConfigRow, "checkoutEnabled" | "themeMode" | "defaultPlanId">>
 ): Promise<ConfigRow> {
   const start = performance.now();
   try {

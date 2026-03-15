@@ -58,15 +58,6 @@ async function hashPassword(password: string): Promise<string> {
   return `${salt}:${Buffer.from(key).toString("hex")}`;
 }
 
-function hashKioskPin(pin: string): string {
-  // Kiosk PINs are verified by our own app code (not Better-Auth),
-  // so the Node built-in scrypt is fine here.
-  const { scryptSync } = require("node:crypto");
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(pin, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
 function randomPin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
@@ -155,7 +146,7 @@ const AUDIT_ACTIONS = [
   { action: "CREATE_PLAN", entityType: "PLAN" },
   { action: "UPDATE_PLAN", entityType: "PLAN" },
   { action: "KIOSK_CHECKIN", entityType: "MEMBER" },
-  { action: "KIOSK_PIN_CREATED_OR_UPDATED", entityType: "CONFIGURATION" },
+  { action: "TOGGLE_CHECKOUT", entityType: "CONFIGURATION" },
   { action: "UPDATE_EMPLOYEE_ROLE", entityType: "EMPLOYEE" },
 ];
 
@@ -262,16 +253,14 @@ async function main() {
     console.log(`   ✓ Plan: ${p.name} — ₹${p.price} / ${p.days}d`);
   }
 
-  // ── 6. Create kiosk config for each branch ──
-  console.log("\n🖥️  Setting up kiosk configurations...");
+  // ── 6. Create configuration for each branch ──
+  console.log("\n🖥️  Setting up branch configurations...");
   for (let i = 0; i < branchIds.length; i++) {
-    const pin = `${1000 + i}`;
-    const hashed = hashKioskPin(pin);
     await sql`
-      INSERT INTO configuration (workspace_id, branch_id, kiosk_pin, theme_mode, created_at, updated_at)
-      VALUES (${wsId}, ${branchIds[i]}, ${hashed}, 'system', ${ONE_YEAR_AGO}, ${NOW})
+      INSERT INTO configuration (workspace_id, branch_id, checkout_enabled, theme_mode, created_at, updated_at)
+      VALUES (${wsId}, ${branchIds[i]}, false, 'system', ${ONE_YEAR_AGO}, ${NOW})
     `;
-    console.log(`   ✓ Kiosk PIN for ${BRANCHES[i].name}: ${pin}`);
+    console.log(`   ✓ Config for ${BRANCHES[i].name}: checkout disabled (default)`);
   }
 
   // ── 7. Create employees distributed across branches ──
@@ -514,6 +503,84 @@ async function main() {
 
   console.log(`   ✓ ${txCount} transactions generated`);
 
+  // ── 9b. Generate attendance records ──
+  console.log("\n📋 Generating attendance records...");
+
+  interface AttendanceRecord {
+    workspaceId: string;
+    branchId: string;
+    memberId: string;
+    checkedInAt: Date;
+    checkedOutAt: Date | null;
+  }
+
+  const attendanceRecords: AttendanceRecord[] = [];
+  const activeForAttendance = allMembers.filter((m) => m.status === "ACTIVE");
+
+  // Generate realistic attendance over the past 30 days
+  for (let daysAgoIdx = 0; daysAgoIdx < 30; daysAgoIdx++) {
+    const day = new Date(NOW.getTime() - daysAgoIdx * ONE_DAY);
+    day.setHours(0, 0, 0, 0);
+
+    // Skip Sundays — gyms often closed
+    if (day.getDay() === 0) continue;
+
+    // Each day, 40-70% of active members show up
+    const showUpRate = 0.4 + Math.random() * 0.3;
+    const shuffled = [...activeForAttendance].sort(() => Math.random() - 0.5);
+    const attendees = shuffled.slice(0, Math.ceil(shuffled.length * showUpRate));
+
+    for (const m of attendees) {
+      // Morning rush (6-10), midday (11-14), evening rush (17-21)
+      const timeSlot = Math.random();
+      let hour: number;
+      if (timeSlot < 0.35) {
+        hour = randomBetween(6, 10); // morning
+      } else if (timeSlot < 0.5) {
+        hour = randomBetween(11, 14); // midday
+      } else {
+        hour = randomBetween(17, 21); // evening
+      }
+
+      const checkedInAt = new Date(day);
+      checkedInAt.setHours(hour, randomBetween(0, 59), randomBetween(0, 59));
+
+      // Session length: 45 min to 2.5 hours
+      const sessionMinutes = randomBetween(45, 150);
+      const checkedOutAt = new Date(checkedInAt.getTime() + sessionMinutes * 60_000);
+
+      // For today, some members might still be at the gym (no checkout)
+      const isToday = daysAgoIdx === 0;
+      const stillHere = isToday && checkedOutAt > NOW;
+
+      attendanceRecords.push({
+        workspaceId: wsId,
+        branchId: m.branchId,
+        memberId: m.id,
+        checkedInAt,
+        checkedOutAt: stillHere ? null : checkedOutAt,
+      });
+    }
+  }
+
+  // Batch insert attendance
+  const ATT_BATCH = 50;
+  for (let i = 0; i < attendanceRecords.length; i += ATT_BATCH) {
+    const batch = attendanceRecords.slice(i, i + ATT_BATCH);
+    await sql`
+      INSERT INTO attendance ${sql(
+        batch.map((a) => ({
+          workspace_id: a.workspaceId,
+          branch_id: a.branchId,
+          member_id: a.memberId,
+          checked_in_at: a.checkedInAt,
+          checked_out_at: a.checkedOutAt,
+        }))
+      )}
+    `;
+  }
+  console.log(`   ✓ ${attendanceRecords.length} attendance records`);
+
   // ── 10. Generate audit logs across the year ──
   console.log("\n📝 Generating audit logs...");
 
@@ -623,9 +690,9 @@ async function main() {
   console.log(`  Plans:      ${PLANS.length}`);
   console.log(`  Members:    ${totalMembers} (Active: ${activeCt} | Expired: ${expiredCt} | Pending: ${pendingCt})`);
   console.log(`  TXs:        ${txCount}`);
+  console.log(`  Attendance: ${attendanceRecords.length}`);
   console.log(`  Audit Logs: ${auditEntries.length}`);
   console.log(`  Employees:  ${EMPLOYEE_NAMES.length}`);
-  console.log(`  Kiosk PINs: ${BRANCHES.map((_, i) => `${BRANCHES[i].name}: ${1000 + i}`).join(", ")}`);
   console.log(`\n  Login at http://localhost:3000/login with the owner credentials above.\n`);
 
   await sql.end();

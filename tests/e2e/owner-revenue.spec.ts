@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedWorkspaceForUser, cleanupTestData, getTestDb } from "./helpers";
+import { seedWorkspaceForUser, cleanupTestData, getTestDb, createTestUser } from "./helpers";
 
 const TEST_USER = {
   name: "Revenue Test Owner",
@@ -11,30 +11,14 @@ let workspaceId: string;
 let userId: string;
 
 test.describe("Owner Revenue Flow", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up the test user via the UI to get a real auth session
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(TEST_USER.name);
-    await page.getByLabel("Email").fill(TEST_USER.email);
-    await page.getByLabel("Password").fill(TEST_USER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-
-    // Get the user ID from database for seeding
-    const sql = getTestDb();
-    const [user] = await sql`
-      SELECT id FROM "user" WHERE email = ${TEST_USER.email}
-    `;
-    userId = user.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+  test.describe.configure({ mode: "serial" });
+  test.beforeAll(async () => {
+    // Create user directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(TEST_USER);
 
     // Seed workspace
     const seeded = await seedWorkspaceForUser(userId);
     workspaceId = seeded.workspaceId;
-
-    await page.close();
   });
 
   test.afterAll(async () => {
@@ -114,5 +98,70 @@ test.describe("Owner Revenue Flow", () => {
     // Verify the member now shows as ACTIVE in the members list
     await expect(page.getByText("John Doe")).toBeVisible({ timeout: 5_000 });
     await expect(page.locator("[data-slot='badge']").filter({ hasText: "ACTIVE" })).toBeVisible();
+  });
+
+  test("created plan appears in plans list with correct price", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password").fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/settings/plans");
+    await expect(page.getByText("1 Month Standard")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("₹1500")).toBeVisible();
+  });
+
+  test("UPI string contains workspace UPI ID", async ({ page }) => {
+    // Login and go to dashboard
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password").fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    // Add another member via the dashboard dialog
+    await page.getByTestId("add-member-btn").click();
+
+    await page.getByLabel("Name").fill("UPI Check User");
+    await page.getByLabel("Phone").fill("9888777666");
+
+    await page.getByTestId("plan-select").click();
+    await page.getByText("1 Month Standard").click();
+
+    await page.getByTestId("submit-member-btn").click();
+
+    // Should show payment step with UPI QR and the workspace UPI ID
+    await expect(page.getByTestId("upi-qr-code")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("testowner@upi")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("transaction record exists in DB after creating member", async () => {
+    const sql = getTestDb();
+    const transactions = await sql`
+      SELECT id, amount, payment_method, status FROM transactions
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY created_at DESC
+    `;
+    expect(transactions.length).toBeGreaterThan(0);
+    // At least one transaction should exist from the first test
+    expect(transactions[0].payment_method).toBe("UPI");
+    await sql.end();
+  });
+
+  test("marking payment as paid creates audit log", async () => {
+    const sql = getTestDb();
+    const [log] = await sql`
+      SELECT action FROM audit_logs
+      WHERE workspace_id = ${workspaceId} AND action = 'MARK_AS_PAID'
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    expect(log).toBeTruthy();
+    expect(log.action).toBe("MARK_AS_PAID");
+    await sql.end();
   });
 });

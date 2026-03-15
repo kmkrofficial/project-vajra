@@ -3,6 +3,7 @@ import {
   seedWorkspaceForUser,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
@@ -20,7 +21,8 @@ let userId: string;
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("Plan & Branch Updates", () => {
-  test.beforeAll(async ({ browser }) => {
+  test.describe.configure({ mode: "serial" });
+  test.beforeAll(async () => {
     // Clean up stale test user from interrupted runs
     const cleanSql = getTestDb();
     const [existing] = await cleanSql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
@@ -32,20 +34,8 @@ test.describe("Plan & Branch Updates", () => {
     }
     await cleanSql.end();
 
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(OWNER.name);
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await page.close();
-
-    const sql = getTestDb();
-    const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    userId = row.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+    // Create user directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(OWNER);
 
     const seeded = await seedWorkspaceForUser(userId);
     workspaceId = seeded.workspaceId;
@@ -237,6 +227,124 @@ test.describe("Plan & Branch Updates", () => {
     `;
     expect(parseFloat(branch.latitude)).toBeCloseTo(12.9716, 3);
     expect(parseFloat(branch.longitude)).toBeCloseTo(77.5946, 3);
+    await sql.end();
+  });
+
+  // ── Plan Validation ───────────────────────────────────────────────────
+
+  test("plan name less than 2 chars shows validation error", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/settings/plans");
+
+    // Wait for the plan to be visible on the page
+    await expect(page.getByText("3 Month Platinum")).toBeVisible({ timeout: 10_000 });
+
+    // Edit the existing plan
+    const editBtn = page.locator("[data-testid^='edit-plan-']").last();
+    await editBtn.click();
+
+    const nameInput = page.getByTestId("edit-plan-name");
+    await nameInput.clear();
+    await nameInput.fill("A"); // < 2 chars
+
+    await page.getByTestId("submit-edit-plan").click();
+
+    // Should show error toast
+    await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("plan price less than 1 shows validation error", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/settings/plans");
+
+    await expect(page.getByText("3 Month Platinum")).toBeVisible({ timeout: 10_000 });
+
+    const editBtn = page.locator("[data-testid^='edit-plan-']").last();
+    await editBtn.click();
+
+    const priceInput = page.getByTestId("edit-plan-price");
+    await priceInput.clear();
+    await priceInput.fill("0"); // < ₹1
+
+    await page.getByTestId("submit-edit-plan").click();
+
+    // HTML5 min=1 validation prevents form submission for values < 1.
+    // Verify the input is marked invalid (rangeUnderflow) and the dialog stays open.
+    const isInvalid = await priceInput.evaluate(
+      (el: HTMLInputElement) => !el.checkValidity()
+    );
+    expect(isInvalid).toBe(true);
+    // Dialog should still be open (form didn't submit)
+    await expect(page.getByTestId("submit-edit-plan")).toBeVisible();
+  });
+
+  test("plan duration less than 1 day shows validation error", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/settings/plans");
+
+    await expect(page.getByText("3 Month Platinum")).toBeVisible({ timeout: 10_000 });
+
+    const editBtn = page.locator("[data-testid^='edit-plan-']").last();
+    await editBtn.click();
+
+    const durationInput = page.getByTestId("edit-plan-duration");
+    await durationInput.clear();
+    await durationInput.fill("0"); // < 1 day
+
+    await page.getByTestId("submit-edit-plan").click();
+
+    // HTML5 min=1 validation prevents form submission for values < 1.
+    const isInvalid = await durationInput.evaluate(
+      (el: HTMLInputElement) => !el.checkValidity()
+    );
+    expect(isInvalid).toBe(true);
+    // Dialog should still be open (form didn't submit)
+    await expect(page.getByTestId("submit-edit-plan")).toBeVisible();
+  });
+
+  // ── Branch Validation ─────────────────────────────────────────────────
+
+  test("branch name less than 2 chars shows validation error", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/branches");
+
+    const branchCard = page.locator("[data-testid^='branch-row-']").filter({
+      hasText: "Main Branch",
+    });
+    await branchCard.locator("[data-testid^='edit-branch-']").click();
+
+    const nameInput = page.getByTestId("edit-branch-name");
+    await nameInput.clear();
+    await nameInput.fill("A"); // < 2 chars
+
+    await page.getByTestId("submit-edit-branch").click();
+
+    await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 5_000 });
+  });
+
+  // ── DB verification ───────────────────────────────────────────────────
+
+  test("plan creation generates audit log", async () => {
+    const sql = getTestDb();
+    const [log] = await sql`
+      SELECT action FROM audit_logs
+      WHERE workspace_id = ${workspaceId} AND action = 'CREATE_PLAN'
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    expect(log).toBeTruthy();
+    expect(log.action).toBe("CREATE_PLAN");
+    await sql.end();
+  });
+
+  test("branch creation generates audit log", async () => {
+    const sql = getTestDb();
+    const [log] = await sql`
+      SELECT action FROM audit_logs
+      WHERE workspace_id = ${workspaceId} AND action = 'CREATE_BRANCH'
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    expect(log).toBeTruthy();
+    expect(log.action).toBe("CREATE_BRANCH");
     await sql.end();
   });
 });

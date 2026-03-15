@@ -3,6 +3,7 @@ import {
   seedWorkspaceForUser,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
@@ -20,23 +21,10 @@ let userId: string;
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("Member Lifecycle & Privacy", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up owner via UI
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(OWNER.name);
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await page.close();
-
-    // Get user ID and mark email verified
-    const sql = getTestDb();
-    const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    userId = row.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+  test.describe.configure({ mode: "serial" });
+  test.beforeAll(async () => {
+    // Create user directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(OWNER);
 
     // Seed workspace + branch
     const seeded = await seedWorkspaceForUser(userId);
@@ -143,5 +131,99 @@ test.describe("Member Lifecycle & Privacy", () => {
 
     // Verify phone is visible in modal
     await expect(page.getByTestId("profile-phone")).toHaveText("9111222333");
+  });
+
+  test("add member with custom kiosk PIN", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/members");
+
+    await page.getByTestId("add-member-btn").click();
+
+    await page.getByLabel("Name").fill("Custom PIN User");
+    await page.getByLabel("Phone").fill("9222333444");
+    await page.getByTestId("sheet-kiosk-pin").fill("7777");
+
+    await page.getByTestId("sheet-plan-select").click();
+    await page.getByText("Monthly Basic").click();
+
+    await page.getByTestId("sheet-submit-member").click();
+
+    await expect(page.getByTestId("sheet-mark-paid")).toBeVisible({ timeout: 5_000 });
+    await page.getByTestId("sheet-mark-paid").click();
+
+    await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Custom PIN User")).toBeVisible({ timeout: 5_000 });
+
+    // Verify custom PIN was stored
+    const sql = getTestDb();
+    const [member] = await sql`
+      SELECT checkin_pin FROM members
+      WHERE workspace_id = ${workspaceId} AND name = 'Custom PIN User'
+    `;
+    // PIN should be stored (hashed or plain) — just verify it exists
+    expect(member.checkin_pin).toBeTruthy();
+    await sql.end();
+  });
+
+  test("member status shows as ACTIVE after payment", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/members");
+
+    // The member created in previous test should have ACTIVE status
+    await expect(page.getByText("Jane Auto PIN")).toBeVisible({ timeout: 5_000 });
+    // Check for ACTIVE badge anywhere on the page
+    await expect(page.getByText("ACTIVE").first()).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("member creation requires phone number", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/members");
+
+    await page.getByTestId("add-member-btn").click();
+
+    await page.getByLabel("Name").fill("No Phone User");
+    // Leave phone blank
+
+    await page.getByTestId("sheet-plan-select").click();
+    await page.getByText("Monthly Basic").click();
+
+    await page.getByTestId("sheet-submit-member").click();
+
+    // Should show error toast or stay on the form (validation failure)
+    // Should NOT navigate to payment step
+    await expect(page.getByTestId("sheet-mark-paid")).not.toBeVisible({ timeout: 3_000 });
+  });
+
+  test("member creation validates invalid phone number", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+    await page.goto("/app/members");
+
+    await page.getByTestId("add-member-btn").click();
+
+    await page.getByLabel("Name").fill("Bad Phone User");
+    await page.getByLabel("Phone").fill("12345"); // invalid, not 10 digits starting with 6-9
+
+    await page.getByTestId("sheet-plan-select").click();
+    await page.getByText("Monthly Basic").click();
+
+    await page.getByTestId("sheet-submit-member").click();
+
+    // Should show validation error (toast or inline) — the sheet should NOT advance to payment
+    await expect(page.getByTestId("sheet-mark-paid")).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("member DB record has correct workspace_id and branch_id", async () => {
+    // This test checks DB state from the members created in earlier serial tests
+    const sql = getTestDb();
+    const members = await sql`
+      SELECT workspace_id, branch_id, status FROM members
+      WHERE workspace_id = ${workspaceId}
+    `;
+    expect(members.length).toBeGreaterThan(0);
+    for (const m of members) {
+      expect(m.workspace_id).toBe(workspaceId);
+      expect(m.branch_id).toBe(branchId);
+    }
+    await sql.end();
   });
 });

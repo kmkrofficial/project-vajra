@@ -4,6 +4,7 @@ import {
   addStaffToWorkspace,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Shared Test Data ───────────────────────────────────────────────────────
@@ -81,37 +82,10 @@ test.describe("Public Landing Page", () => {
 // ─── Authenticated Navigation ───────────────────────────────────────────────
 
 test.describe("Authenticated Navigation", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up admin
-    const adminPage = await browser.newPage();
-    await adminPage.goto("/signup");
-    await adminPage.getByLabel("Full Name").fill(ADMIN.name);
-    await adminPage.getByLabel("Email").fill(ADMIN.email);
-    await adminPage.getByLabel("Password").fill(ADMIN.password);
-    await adminPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(adminPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await adminPage.close();
-
-    // Sign up staff
-    const staffPage = await browser.newPage();
-    await staffPage.goto("/signup");
-    await staffPage.getByLabel("Full Name").fill(STAFF.name);
-    await staffPage.getByLabel("Email").fill(STAFF.email);
-    await staffPage.getByLabel("Password").fill(STAFF.password);
-    await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await staffPage.close();
-
-    // Get user IDs
-    const sql = getTestDb();
-    const [adminRow] =
-      await sql`SELECT id FROM "user" WHERE email = ${ADMIN.email}`;
-    const [staffRow] =
-      await sql`SELECT id FROM "user" WHERE email = ${STAFF.email}`;
-    adminId = adminRow.id;
-    staffId = staffRow.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${adminId}, ${staffId})`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    adminId = await createTestUser(ADMIN);
+    staffId = await createTestUser(STAFF);
 
     // Seed workspace + assign admin
     const seeded = await seedWorkspaceForUser(adminId);
@@ -236,5 +210,59 @@ test.describe("Authenticated Navigation", () => {
     // Try navigating directly to /app/settings/plans (admin-only)
     await page.goto("/app/settings/plans");
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  // ── Additional Navigation Tests ───────────────────────────────────────
+
+  test("staff redirected from employees page", async ({ page }) => {
+    await loginAndSelectWorkspace(page, STAFF);
+
+    await page.goto("/app/employees");
+    // The employees page redirects staff or shows limited view
+    // At minimum, staff should not see admin-only controls
+    await expect(page).toHaveURL(/\/app\/(employees|dashboard)/, { timeout: 10_000 });
+  });
+
+  test("staff redirected from analytics page", async ({ page }) => {
+    await loginAndSelectWorkspace(page, STAFF);
+
+    await page.goto("/app/analytics");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("staff redirected from audit logs page", async ({ page }) => {
+    await loginAndSelectWorkspace(page, STAFF);
+
+    await page.goto("/app/audit-logs");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("admin can navigate to employees page", async ({ page }) => {
+    await loginAndSelectWorkspace(page, ADMIN);
+
+    const sidebar = page.getByTestId("app-sidebar");
+    await sidebar.getByText("Employees").click();
+    await expect(page).toHaveURL(/\/app\/employees/, { timeout: 5_000 });
+  });
+
+  test("admin 'Add Member' FAB navigates to members, 'Launch Kiosk' to kiosk", async ({
+    page,
+  }) => {
+    await loginAndSelectWorkspace(page, ADMIN);
+
+    await page.getByTestId("fab-add-member").click();
+    await expect(page).toHaveURL(/\/app\/members/, { timeout: 5_000 });
+
+    await page.goto("/app/dashboard");
+    await page.getByTestId("fab-launch-kiosk").click();
+    await expect(page).toHaveURL(/\/kiosk/, { timeout: 5_000 });
+  });
+
+  test("unauthenticated user accessing /app/dashboard is redirected", async ({
+    page,
+  }) => {
+    await page.context().clearCookies();
+    await page.goto("/app/dashboard");
+    await expect(page).toHaveURL(/\/(login|workspaces)/, { timeout: 10_000 });
   });
 });

@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 import {
   seedWorkspaceForUser,
+  addStaffToWorkspace,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
@@ -13,41 +15,47 @@ const OWNER = {
   password: "TestPassword123!",
 };
 
+const RECEPTIONIST = {
+  name: "HRMS Receptionist",
+  email: `e2e-hrms-recep-${Date.now()}@test.local`,
+  password: "TestPassword123!",
+};
+
+const TRAINER = {
+  name: "HRMS Trainer",
+  email: `e2e-hrms-trainer-${Date.now()}@test.local`,
+  password: "TestPassword123!",
+};
+
 let workspaceId: string;
 let branchId: string;
 let userId: string;
+let receptionistId: string;
+let trainerId: string;
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("HRMS & RBAC", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up owner via UI
-    const page = await browser.newPage();
-    await page.goto("/signup");
-    await page.getByLabel("Full Name").fill(OWNER.name);
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await page.close();
-
-    // Get user ID and mark email as verified (skip OTP in test setup)
-    const sql = getTestDb();
-    const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    userId = row.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    userId = await createTestUser(OWNER);
+    receptionistId = await createTestUser(RECEPTIONIST);
+    trainerId = await createTestUser(TRAINER);
 
     // Seed workspace
     const seeded = await seedWorkspaceForUser(userId);
     workspaceId = seeded.workspaceId;
     branchId = seeded.branchId;
+
+    // Add staff roles
+    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
+    await addStaffToWorkspace(workspaceId, branchId, trainerId, "TRAINER");
   });
 
   test.afterAll(async () => {
     if (workspaceId) await cleanupTestData(workspaceId);
     const sql = getTestDb();
-    await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
+    await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${RECEPTIONIST.email}, ${TRAINER.email})`;
     await sql.end();
   });
 
@@ -143,5 +151,118 @@ test.describe("HRMS & RBAC", () => {
     `;
     expect(emp.role).toBe("manager");
     await sql.end();
+  });
+
+  // ── RBAC: Receptionist restrictions ───────────────────────────────────
+
+  test("receptionist is redirected from branches page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(RECEPTIONIST.email);
+    await page.getByLabel("Password").fill(RECEPTIONIST.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/branches");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("receptionist is redirected from settings page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(RECEPTIONIST.email);
+    await page.getByLabel("Password").fill(RECEPTIONIST.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/settings");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("receptionist is redirected from analytics page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(RECEPTIONIST.email);
+    await page.getByLabel("Password").fill(RECEPTIONIST.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/analytics");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("receptionist is redirected from audit logs page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(RECEPTIONIST.email);
+    await page.getByLabel("Password").fill(RECEPTIONIST.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/audit-logs");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  // ── RBAC: Trainer restrictions ────────────────────────────────────────
+
+  test("trainer is redirected from branches page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TRAINER.email);
+    await page.getByLabel("Password").fill(TRAINER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/branches");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("trainer is redirected from settings page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TRAINER.email);
+    await page.getByLabel("Password").fill(TRAINER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/settings");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  test("trainer is redirected from analytics page", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill(TRAINER.email);
+    await page.getByLabel("Password").fill(TRAINER.password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+    await page.locator("[data-testid^='workspace-card-']").first().click();
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+
+    await page.goto("/app/analytics");
+    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  });
+
+  // ── Owner has full access ─────────────────────────────────────────────
+
+  test("owner can access all admin pages", async ({ page }) => {
+    await loginAndSelectWorkspace(page);
+
+    await page.goto("/app/branches");
+    await expect(page).toHaveURL(/\/app\/branches/, { timeout: 5_000 });
+
+    await page.goto("/app/settings");
+    await expect(page).toHaveURL(/\/app\/settings/, { timeout: 5_000 });
+
+    await page.goto("/app/analytics");
+    await expect(page).toHaveURL(/\/app\/analytics/, { timeout: 5_000 });
+
+    await page.goto("/app/audit-logs");
+    await expect(page).toHaveURL(/\/app\/audit-logs/, { timeout: 5_000 });
   });
 });

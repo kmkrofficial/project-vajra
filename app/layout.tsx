@@ -45,7 +45,7 @@ export default function RootLayout({
           <WorkspaceProvider>
             {children}
           </WorkspaceProvider>
-          <Toaster richColors position="top-center" />
+          <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

@@ -4,6 +4,7 @@ import {
   addStaffToWorkspace,
   cleanupTestData,
   getTestDb,
+  createTestUser,
 } from "./helpers";
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
@@ -28,35 +29,10 @@ let receptionistId: string;
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 test.describe("Owner Intelligence", () => {
-  test.beforeAll(async ({ browser }) => {
-    // Sign up owner via UI
-    const ownerPage = await browser.newPage();
-    await ownerPage.goto("/signup");
-    await ownerPage.getByLabel("Full Name").fill(OWNER.name);
-    await ownerPage.getByLabel("Email").fill(OWNER.email);
-    await ownerPage.getByLabel("Password").fill(OWNER.password);
-    await ownerPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(ownerPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await ownerPage.close();
-
-    // Sign up receptionist via UI
-    const staffPage = await browser.newPage();
-    await staffPage.goto("/signup");
-    await staffPage.getByLabel("Full Name").fill(RECEPTIONIST.name);
-    await staffPage.getByLabel("Email").fill(RECEPTIONIST.email);
-    await staffPage.getByLabel("Password").fill(RECEPTIONIST.password);
-    await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await staffPage.close();
-
-    // Get user IDs
-    const sql = getTestDb();
-    const [ownerRow] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    const [staffRow] = await sql`SELECT id FROM "user" WHERE email = ${RECEPTIONIST.email}`;
-    ownerId = ownerRow.id;
-    receptionistId = staffRow.id;
-    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${ownerId}, ${receptionistId})`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    ownerId = await createTestUser(OWNER);
+    receptionistId = await createTestUser(RECEPTIONIST);
 
     // Seed workspace + assign owner
     const seeded = await seedWorkspaceForUser(ownerId);
@@ -166,5 +142,43 @@ test.describe("Owner Intelligence", () => {
     // Should be redirected to dashboard (RBAC block - SUPER_ADMIN only)
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
     await expect(page.getByTestId("audit-logs-page")).not.toBeVisible();
+  });
+
+  // ── Additional Edge Cases ─────────────────────────────────────────────
+
+  test("audit log table has correct columns", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER);
+    await page.goto("/app/audit-logs");
+    await expect(page.getByTestId("audit-logs-page")).toBeVisible({ timeout: 5_000 });
+
+    // Verify the seeded entry has the expected entity type
+    await expect(page.getByRole("cell", { name: /^MEMBER/ })).toBeVisible();
+    await expect(page.getByText("ADD_MEMBER")).toBeVisible();
+  });
+
+  test("analytics page shows KPI card structure", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER);
+    await page.goto("/app/analytics");
+    await expect(page.getByTestId("analytics-page")).toBeVisible({ timeout: 5_000 });
+
+    // Verify specific KPI titles
+    await expect(page.getByText("Monthly Revenue")).toBeVisible();
+    await expect(page.getByText("Active Members")).toBeVisible();
+  });
+
+  test("audit log filter narrows results", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER);
+    await page.goto("/app/audit-logs");
+    await expect(page.getByTestId("audit-logs-page")).toBeVisible({ timeout: 5_000 });
+
+    // Filter by action
+    await page.getByTestId("audit-filter").fill("ADD_MEMBER");
+    await expect(page.getByText("ADD_MEMBER")).toBeVisible();
+
+    // Filter by something that doesn't exist
+    await page.getByTestId("audit-filter").fill("NONEXISTENT_ACTION");
+    // After filtering, the seeded entry should not match
+    // The table should either show no results or an empty state
+    await expect(page.getByText("ADD_MEMBER")).not.toBeVisible({ timeout: 3_000 });
   });
 });

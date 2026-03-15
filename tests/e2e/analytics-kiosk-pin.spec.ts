@@ -4,6 +4,8 @@ import {
   addStaffToWorkspace,
   cleanupTestData,
   getTestDb,
+  createTestUser,
+  loginAndSelectWorkspace,
 } from "./helpers";
 
 // ─── Test Users ─────────────────────────────────────────────────────────────
@@ -25,43 +27,20 @@ let branchId: string;
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
-test.describe("Analytics & Kiosk PIN", () => {
+test.describe("Analytics & Settings", () => {
   test.describe.configure({ mode: "serial" });
-  test.beforeAll(async ({ browser }) => {
-    // Sign up the owner
-    const ownerPage = await browser.newPage();
-    await ownerPage.goto("/signup");
-    await ownerPage.getByLabel("Full Name").fill(OWNER.name);
-    await ownerPage.getByLabel("Email").fill(OWNER.email);
-    await ownerPage.getByLabel("Password").fill(OWNER.password);
-    await ownerPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(ownerPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await ownerPage.close();
-
-    // Sign up the staff
-    const staffPage = await browser.newPage();
-    await staffPage.goto("/signup");
-    await staffPage.getByLabel("Full Name").fill(STAFF.name);
-    await staffPage.getByLabel("Email").fill(STAFF.email);
-    await staffPage.getByLabel("Password").fill(STAFF.password);
-    await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
-    await staffPage.close();
-
-    // Get user IDs
-    const sql = getTestDb();
-    const [ownerRow] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
-    const [staffRow] = await sql`SELECT id FROM "user" WHERE email = ${STAFF.email}`;
-    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${ownerRow.id}, ${staffRow.id})`;
-    await sql.end();
+  test.beforeAll(async () => {
+    // Create users directly in DB (bypasses UI signup race condition)
+    const ownerId = await createTestUser(OWNER);
+    const staffUserId = await createTestUser(STAFF);
 
     // Seed workspace
-    const seeded = await seedWorkspaceForUser(ownerRow.id);
+    const seeded = await seedWorkspaceForUser(ownerId);
     workspaceId = seeded.workspaceId;
     branchId = seeded.branchId;
 
     // Add staff
-    await addStaffToWorkspace(workspaceId, branchId, staffRow.id, "RECEPTIONIST");
+    await addStaffToWorkspace(workspaceId, branchId, staffUserId, "RECEPTIONIST");
   });
 
   test.afterAll(async () => {
@@ -75,14 +54,7 @@ test.describe("Analytics & Kiosk PIN", () => {
   // ─── Analytics RBAC ─────────────────────────────────────────────────────
 
   test("owner can access analytics page", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    await page.locator("[data-testid^='workspace-card-']").first().click();
-    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+    await loginAndSelectWorkspace(page, OWNER, expect);
 
     // Navigate to analytics
     await page.goto("/app/analytics");
@@ -91,14 +63,7 @@ test.describe("Analytics & Kiosk PIN", () => {
   });
 
   test("staff is redirected away from analytics page", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(STAFF.email);
-    await page.getByLabel("Password").fill(STAFF.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    await page.locator("[data-testid^='workspace-card-']").first().click();
-    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+    await loginAndSelectWorkspace(page, STAFF, expect);
 
     // Try to navigate to analytics
     await page.goto("/app/analytics");
@@ -108,62 +73,45 @@ test.describe("Analytics & Kiosk PIN", () => {
     await expect(page.getByTestId("analytics-page")).not.toBeVisible();
   });
 
-  // ─── Kiosk PIN Setup ───────────────────────────────────────────────────
+  // ─── Checkout Toggle in Settings ──────────────────────────────────────
 
-  test("owner can set kiosk PIN from settings", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
+  test("owner can toggle checkout setting from settings page", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER, expect);
 
-    await page.locator("[data-testid^='workspace-card-']").first().click();
-    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+    // Navigate to settings
+    await page.goto("/app/settings");
+    await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
-    // Navigate to kiosk settings
-    await page.goto("/app/settings/kiosk");
+    // The checkout toggle section should be visible
+    await expect(page.getByTestId("checkout-toggle-section")).toBeVisible();
 
-    // Fill in and save a PIN
-    await page.getByTestId("kiosk-pin-input").fill("1234");
-    await page.getByTestId("kiosk-pin-confirm").fill("1234");
-    await page.getByTestId("kiosk-pin-save").click();
+    // Initially disabled (default) — button text should say "Disabled"
+    const btn = page.getByTestId("checkout-toggle-btn");
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveText("Disabled");
 
-    // Should see success toast
-    await expect(page.getByText("Kiosk exit PIN saved!")).toBeVisible({
-      timeout: 5_000,
-    });
+    // Click to enable
+    await btn.click();
+    await expect(page.getByText("Check-out enabled")).toBeVisible({ timeout: 5_000 });
+    await expect(btn).toHaveText("Enabled");
+
+    // Click to disable again
+    await btn.click();
+    await expect(page.getByText("Check-out disabled")).toBeVisible({ timeout: 5_000 });
+    await expect(btn).toHaveText("Disabled");
   });
 
-  test("kiosk exit uses the stored PIN", async ({ page }) => {
-    // First log in and navigate to set context
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(OWNER.email);
-    await page.getByLabel("Password").fill(OWNER.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    await page.locator("[data-testid^='workspace-card-']").first().click();
-    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+  test("kiosk exit link returns to dashboard", async ({ page }) => {
+    await loginAndSelectWorkspace(page, OWNER, expect);
 
     // Navigate to kiosk
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
-    // Click the hidden exit button
-    await page.getByTestId("kiosk-exit-btn").click({ force: true });
+    // Click the dashboard link (top-right)
+    await page.getByTestId("kiosk-exit-btn").click();
 
-    // Enter wrong PIN
-    await page.getByTestId("kiosk-exit-input").fill("9999");
-    await page.getByTestId("kiosk-exit-submit").click();
-
-    // Should show error
-    await expect(page.getByText("Incorrect PIN")).toBeVisible({ timeout: 5_000 });
-
-    // Enter correct PIN (set as "1234" in previous test)
-    await page.getByTestId("kiosk-exit-input").fill("1234");
-    await page.getByTestId("kiosk-exit-submit").click();
-
-    // Should redirect to dashboard
+    // Should navigate back to dashboard
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 });
