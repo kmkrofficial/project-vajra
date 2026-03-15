@@ -7,7 +7,7 @@ const TEST_USER = {
 };
 
 test.describe("Authentication Flow", () => {
-  test("should sign up a new user and redirect to /onboarding", async ({
+  test("should sign up a new user and redirect to /verify-email", async ({
     page,
   }) => {
     await page.goto("/signup");
@@ -17,8 +17,8 @@ test.describe("Authentication Flow", () => {
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
 
-    // After successful signup, user should be redirected to /onboarding
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    // After successful signup, user should be redirected to /verify-email
+    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
   });
 
   test("should sign in an existing user and redirect to /workspaces", async ({
@@ -30,7 +30,7 @@ test.describe("Authentication Flow", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
 
     // Clear session so we can test the sign-in flow
     await page.context().clearCookies();

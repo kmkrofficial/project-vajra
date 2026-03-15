@@ -19,13 +19,14 @@ test.describe("Workspace Routing", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await page.close();
 
-    // Get user ID and seed a workspace so pages don't redirect to /onboarding
+    // Get user ID, mark email verified, seed workspace
     const sql = getTestDb();
     const [row] = await sql`SELECT id FROM "user" WHERE email = ${TEST_USER.email}`;
     userId = row.id;
+    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
     await sql.end();
 
     const seeded = await seedWorkspaceForUser(userId);

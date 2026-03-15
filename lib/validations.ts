@@ -40,3 +40,40 @@ export const memberFormSchema = z.object({
 });
 
 export type MemberFormData = z.infer<typeof memberFormSchema>;
+
+// ─── Employee Schemas ───────────────────────────────────────────────────────
+
+/** Schema for inviting/adding a new employee. */
+export const employeeInviteSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: emailSchema,
+  phone: indianPhoneSchema
+    .optional()
+    .or(z.literal("")),
+  role: z.enum(["manager", "trainer", "receptionist"], {
+    message: "Please select a role",
+  }),
+  branchId: z.string().uuid("Please select a branch"),
+});
+
+export type EmployeeInviteData = z.infer<typeof employeeInviteSchema>;
+
+/** Schema for editing an existing employee. */
+export const employeeEditSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: emailSchema,
+  phone: indianPhoneSchema
+    .optional()
+    .or(z.literal("")),
+  role: z.enum(["manager", "trainer", "receptionist"], {
+    message: "Please select a role",
+  }),
+  branchId: z.string().uuid("Please select a branch"),
+});
+
+export type EmployeeEditData = z.infer<typeof employeeEditSchema>;
+
+/** 6-digit OTP schema. */
+export const otpSchema = z
+  .string()
+  .regex(/^\d{6}$/, "OTP must be exactly 6 digits");

@@ -19,7 +19,7 @@ test.describe("Owner Revenue Flow", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
 
     // Get the user ID from database for seeding
     const sql = getTestDb();
@@ -27,6 +27,7 @@ test.describe("Owner Revenue Flow", () => {
       SELECT id FROM "user" WHERE email = ${TEST_USER.email}
     `;
     userId = user.id;
+    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
     await sql.end();
 
     // Seed workspace

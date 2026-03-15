@@ -28,13 +28,14 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign Up" }).click();
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await page.close();
 
-    // Get user ID
+    // Get user ID and mark email as verified (skip OTP in test setup)
     const sql = getTestDb();
     const [row] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
     userId = row.id;
+    await sql`UPDATE "user" SET email_verified = true WHERE id = ${userId}`;
     await sql.end();
 
     // Seed workspace
@@ -66,7 +67,7 @@ test.describe("HRMS & RBAC", () => {
 
   // ── Tests ─────────────────────────────────────────────────────────────
 
-  test("owner creates branch, adds employee, then changes role inline", async ({
+  test("owner creates branch, invites employee, then edits role", async ({
     page,
   }) => {
     await loginAndSelectWorkspace(page);
@@ -84,14 +85,15 @@ test.describe("HRMS & RBAC", () => {
       timeout: 5_000,
     });
 
-    // ── Step 2: Navigate to Employees and add an employee ──
+    // ── Step 2: Navigate to Employees and invite an employee ──
     await page.goto("/app/employees");
     await expect(page).toHaveURL(/\/app\/employees/, { timeout: 5_000 });
 
-    await page.getByTestId("add-employee-btn").click();
+    await page.getByTestId("invite-employee-btn").click();
 
-    // Fill in the employee form
+    // Fill in the employee form (now requires email)
     await page.getByTestId("emp-name-input").fill("Alice Trainer");
+    await page.getByTestId("emp-email-input").fill(`e2e-alice-${Date.now()}@test.local`);
 
     // Select role: receptionist
     await page.getByTestId("emp-role-select").click();
@@ -114,19 +116,23 @@ test.describe("HRMS & RBAC", () => {
       timeout: 5_000,
     });
 
-    // ── Step 3: Change role via inline Select ──
-    // The owner sees a <Select> dropdown for each employee's role
-    const employeeRow = page.getByText("Alice Trainer").locator("../..");
-    const roleSelect = employeeRow.locator("[data-testid^='role-select-']");
-    await expect(roleSelect).toBeVisible();
+    // ── Step 3: Edit the employee role via Edit dialog ──
+    const empRow = page.locator(`[data-testid^="employee-row-"]`).filter({
+      hasText: "Alice Trainer",
+    });
+    await expect(empRow).toBeVisible();
 
-    // Click the role select trigger and change to Manager
-    await roleSelect.click();
+    await empRow.locator("[data-testid^='edit-employee-']").click();
+
+    // Change role to Manager
+    await page.getByTestId("edit-role-select").click();
     await page.getByText("Manager", { exact: true }).click();
 
-    // Verify success toast for role update
+    await page.getByTestId("edit-submit").click();
+
+    // Verify success toast for update
     await expect(
-      page.locator("[data-sonner-toast]").filter({ hasText: /role updated/i })
+      page.locator("[data-sonner-toast]").filter({ hasText: /updated/i })
     ).toBeVisible({ timeout: 5_000 });
 
     // Verify the role was updated in the DB

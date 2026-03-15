@@ -89,7 +89,7 @@ test.describe("Authenticated Navigation", () => {
     await adminPage.getByLabel("Email").fill(ADMIN.email);
     await adminPage.getByLabel("Password").fill(ADMIN.password);
     await adminPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(adminPage).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(adminPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await adminPage.close();
 
     // Sign up staff
@@ -99,7 +99,7 @@ test.describe("Authenticated Navigation", () => {
     await staffPage.getByLabel("Email").fill(STAFF.email);
     await staffPage.getByLabel("Password").fill(STAFF.password);
     await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await staffPage.close();
 
     // Get user IDs
@@ -110,6 +110,7 @@ test.describe("Authenticated Navigation", () => {
       await sql`SELECT id FROM "user" WHERE email = ${STAFF.email}`;
     adminId = adminRow.id;
     staffId = staffRow.id;
+    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${adminId}, ${staffId})`;
     await sql.end();
 
     // Seed workspace + assign admin

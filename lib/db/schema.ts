@@ -207,10 +207,11 @@ export const employeeRoleEnum = pgEnum("employee_role", [
   "receptionist",
 ]);
 
-/** Employee onboarding status: invited (not yet linked to a user) or active. */
+/** Employee onboarding status: invited → active → left. */
 export const employeeStatusEnum = pgEnum("employee_status", [
   "active",
   "invited",
+  "left",
 ]);
 
 /** Staff member record. Optionally linked to an auth user via `userId`. */
@@ -224,8 +225,30 @@ export const employees = pgTable("employees", {
     .references(() => branches.id, { onDelete: "cascade" }),
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
   role: employeeRoleEnum("role").notNull().default("receptionist"),
   status: employeeStatusEnum("status").notNull().default("invited"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Employee invite tokens. Sent via email OTP.
+ * The token is a 6-digit OTP code, hashed before storage.
+ * Expires after 24 hours. One active invite per employee at a time.
+ */
+export const employeeInvites = pgTable("employee_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  otpHash: text("otp_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumed: boolean("consumed").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -390,6 +413,18 @@ export const employeeRelations = relations(employees, ({ one, many }) => ({
   user: one(user, {
     fields: [employees.userId],
     references: [user.id],
+  }),
+  invites: many(employeeInvites),
+}));
+
+export const employeeInviteRelations = relations(employeeInvites, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeInvites.employeeId],
+    references: [employees.id],
+  }),
+  workspace: one(gymWorkspaces, {
+    fields: [employeeInvites.workspaceId],
+    references: [gymWorkspaces.id],
   }),
 }));
 

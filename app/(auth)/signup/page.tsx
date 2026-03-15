@@ -33,8 +33,8 @@ export default function SignupPage() {
     const result = await signUpUser(email, password, name);
 
     if (result.success) {
-      toast.success("Account created! Redirecting…");
-      router.push("/onboarding");
+      toast.success("Account created! Please verify your email.");
+      router.push("/verify-email");
     } else {
       toast.error(result.error ?? "Signup failed. Please try again.");
       setLoading(false);

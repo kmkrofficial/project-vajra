@@ -135,18 +135,18 @@ const LAST_NAMES = [
 ];
 
 const EMPLOYEE_NAMES = [
-  { name: "Vikrant Mehra", role: "manager" as const },
-  { name: "Sita Rangan", role: "receptionist" as const },
-  { name: "Anil Kumar", role: "trainer" as const },
-  { name: "Preethi Nair", role: "trainer" as const },
-  { name: "Gopal Reddy", role: "manager" as const },
-  { name: "Lakshmi Iyer", role: "receptionist" as const },
-  { name: "Rajan Pillai", role: "trainer" as const },
-  { name: "Deepa Sharma", role: "receptionist" as const },
-  { name: "Sunil Bhat", role: "trainer" as const },
-  { name: "Megha Desai", role: "manager" as const },
-  { name: "Karthik Rao", role: "trainer" as const },
-  { name: "Anita Verma", role: "receptionist" as const },
+  { name: "Vikrant Mehra", role: "manager" as const, email: "vikrant.mehra@vajra.local", phone: "9880022001" },
+  { name: "Sita Rangan", role: "receptionist" as const, email: "sita.rangan@vajra.local", phone: "9880022002" },
+  { name: "Anil Kumar", role: "trainer" as const, email: "anil.kumar@vajra.local", phone: "9880022003" },
+  { name: "Preethi Nair", role: "trainer" as const, email: "preethi.nair@vajra.local", phone: "9880022004" },
+  { name: "Gopal Reddy", role: "manager" as const, email: "gopal.reddy@vajra.local", phone: "9880022005" },
+  { name: "Lakshmi Iyer", role: "receptionist" as const, email: "lakshmi.iyer@vajra.local", phone: "9880022006" },
+  { name: "Rajan Pillai", role: "trainer" as const, email: "rajan.pillai@vajra.local", phone: null },
+  { name: "Deepa Sharma", role: "receptionist" as const, email: "deepa.sharma@vajra.local", phone: null },
+  { name: "Sunil Bhat", role: "trainer" as const, email: "sunil.bhat@vajra.local", phone: "9880022009" },
+  { name: "Megha Desai", role: "manager" as const, email: "megha.desai@vajra.local", phone: "9880022010" },
+  { name: "Karthik Rao", role: "trainer" as const, email: "karthik.rao@vajra.local", phone: null },
+  { name: "Anita Verma", role: "receptionist" as const, email: "anita.verma@vajra.local", phone: "9880022012" },
 ];
 
 const AUDIT_ACTIONS = [
@@ -280,10 +280,10 @@ async function main() {
     const emp = EMPLOYEE_NAMES[i];
     const assignedBranch = branchIds[i % branchIds.length];
     await sql`
-      INSERT INTO employees (workspace_id, branch_id, name, role, status, created_at)
-      VALUES (${wsId}, ${assignedBranch}, ${emp.name}, ${emp.role}, 'active', ${randomDate(ONE_YEAR_AGO, daysAgo(180))})
+      INSERT INTO employees (workspace_id, branch_id, name, email, phone, role, status, created_at)
+      VALUES (${wsId}, ${assignedBranch}, ${emp.name}, ${emp.email}, ${emp.phone}, ${emp.role}, 'active', ${randomDate(ONE_YEAR_AGO, daysAgo(180))})
     `;
-    console.log(`   ✓ ${emp.name} (${emp.role}) → ${BRANCHES[i % BRANCHES.length].name}`);
+    console.log(`   ✓ ${emp.name} (${emp.role}) <${emp.email}> → ${BRANCHES[i % BRANCHES.length].name}`);
   }
 
   // ── 8. Generate members across the entire past year ──

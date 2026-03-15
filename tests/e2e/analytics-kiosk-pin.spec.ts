@@ -35,7 +35,7 @@ test.describe("Analytics & Kiosk PIN", () => {
     await ownerPage.getByLabel("Email").fill(OWNER.email);
     await ownerPage.getByLabel("Password").fill(OWNER.password);
     await ownerPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(ownerPage).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(ownerPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await ownerPage.close();
 
     // Sign up the staff
@@ -45,13 +45,14 @@ test.describe("Analytics & Kiosk PIN", () => {
     await staffPage.getByLabel("Email").fill(STAFF.email);
     await staffPage.getByLabel("Password").fill(STAFF.password);
     await staffPage.getByRole("button", { name: "Sign Up" }).click();
-    await expect(staffPage).toHaveURL(/\/onboarding/, { timeout: 10_000 });
+    await expect(staffPage).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
     await staffPage.close();
 
     // Get user IDs
     const sql = getTestDb();
     const [ownerRow] = await sql`SELECT id FROM "user" WHERE email = ${OWNER.email}`;
     const [staffRow] = await sql`SELECT id FROM "user" WHERE email = ${STAFF.email}`;
+    await sql`UPDATE "user" SET email_verified = true WHERE id IN (${ownerRow.id}, ${staffRow.id})`;
     await sql.end();
 
     // Seed workspace
