@@ -236,11 +236,14 @@ export function AddMemberSheet({
                     <SelectValue placeholder="Select a plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {plans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} — ₹{plan.price} ({plan.durationDays}d)
-                      </SelectItem>
-                    ))}
+                    {plans.map((plan) => {
+                      const label = `${plan.name} — ₹${plan.price} (${plan.durationDays}d)`;
+                      return (
+                        <SelectItem key={plan.id} value={plan.id} label={label}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 {fieldErrors.planId && (

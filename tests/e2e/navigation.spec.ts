@@ -5,6 +5,7 @@ import {
   cleanupTestData,
   getTestDb,
   createTestUser,
+  loginAndSelectWorkspace,
 } from "./helpers";
 
 // ─── Shared Test Data ───────────────────────────────────────────────────────
@@ -106,33 +107,28 @@ test.describe("Authenticated Navigation", () => {
 
   // ── Helper: login & select workspace ──────────────────────────────────
 
-  async function loginAndSelectWorkspace(
+  async function login(
     page: import("@playwright/test").Page,
     user: { email: string; password: string }
   ) {
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(user.email);
-    await page.getByLabel("Password").fill(user.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    await page.locator("[data-testid^='workspace-card-']").first().click();
-    await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
+    await loginAndSelectWorkspace(page, user, expect);
   }
 
   // ── Admin sidebar navigation ──────────────────────────────────────────
 
   test("admin can navigate to all sidebar links", async ({ page }) => {
-    await loginAndSelectWorkspace(page, ADMIN);
+    await login(page, ADMIN);
 
     const sidebar = page.getByTestId("app-sidebar");
 
     // Admin should see all nav items including Branches and Settings
     await expect(sidebar.getByText("Dashboard")).toBeVisible();
     await expect(sidebar.getByText("Members")).toBeVisible();
-    await expect(sidebar.getByText("Kiosk")).toBeVisible();
     await expect(sidebar.getByText("Branches")).toBeVisible();
     await expect(sidebar.getByText("Settings")).toBeVisible();
+
+    // Kiosk should NOT be in the sidebar (accessible via Dashboard FAB)
+    await expect(sidebar.getByText("Kiosk")).not.toBeVisible();
 
     // Navigate to Members
     await sidebar.getByText("Members").click();
@@ -154,24 +150,24 @@ test.describe("Authenticated Navigation", () => {
   // ── Staff sidebar RBAC ────────────────────────────────────────────────
 
   test("staff cannot see admin-only links in sidebar", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF);
+    await login(page, STAFF);
 
     const sidebar = page.getByTestId("app-sidebar");
 
     // Staff should see common links
     await expect(sidebar.getByText("Dashboard")).toBeVisible();
     await expect(sidebar.getByText("Members")).toBeVisible();
-    await expect(sidebar.getByText("Kiosk")).toBeVisible();
 
     // Staff should NOT see admin-only links
     await expect(sidebar.getByText("Branches")).not.toBeVisible();
     await expect(sidebar.getByText("Settings")).not.toBeVisible();
+    await expect(sidebar.getByText("Kiosk")).not.toBeVisible();
   });
 
   // ── Dashboard FAB links ───────────────────────────────────────────────
 
   test("dashboard FABs link to add-member and kiosk", async ({ page }) => {
-    await loginAndSelectWorkspace(page, ADMIN);
+    await login(page, ADMIN);
 
     // "Add Member" FAB should navigate to members page
     await page.getByTestId("fab-add-member").click();
@@ -189,7 +185,7 @@ test.describe("Authenticated Navigation", () => {
   // ── Top bar visibility ────────────────────────────────────────────────
 
   test("top bar displays gym name and user menu", async ({ page }) => {
-    await loginAndSelectWorkspace(page, ADMIN);
+    await login(page, ADMIN);
 
     const topBar = page.getByTestId("top-bar");
     await expect(topBar).toBeVisible();
@@ -201,7 +197,7 @@ test.describe("Authenticated Navigation", () => {
   // ── Staff direct URL guard for admin pages ────────────────────────────
 
   test("staff redirected away from admin-only routes", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF);
+    await login(page, STAFF);
 
     // Try navigating directly to /app/branches (admin-only)
     await page.goto("/app/branches");
@@ -215,7 +211,7 @@ test.describe("Authenticated Navigation", () => {
   // ── Additional Navigation Tests ───────────────────────────────────────
 
   test("staff redirected from employees page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF);
+    await login(page, STAFF);
 
     await page.goto("/app/employees");
     // The employees page redirects staff or shows limited view
@@ -224,21 +220,21 @@ test.describe("Authenticated Navigation", () => {
   });
 
   test("staff redirected from analytics page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF);
+    await login(page, STAFF);
 
     await page.goto("/app/analytics");
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 
   test("staff redirected from audit logs page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF);
+    await login(page, STAFF);
 
     await page.goto("/app/audit-logs");
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 
   test("admin can navigate to employees page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, ADMIN);
+    await login(page, ADMIN);
 
     const sidebar = page.getByTestId("app-sidebar");
     await sidebar.getByText("Employees").click();
@@ -248,7 +244,7 @@ test.describe("Authenticated Navigation", () => {
   test("admin 'Add Member' FAB navigates to members, 'Launch Kiosk' to kiosk", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page, ADMIN);
+    await login(page, ADMIN);
 
     await page.getByTestId("fab-add-member").click();
     await expect(page).toHaveURL(/\/app\/members/, { timeout: 5_000 });
@@ -256,6 +252,23 @@ test.describe("Authenticated Navigation", () => {
     await page.goto("/app/dashboard");
     await page.getByTestId("fab-launch-kiosk").click();
     await expect(page).toHaveURL(/\/kiosk/, { timeout: 5_000 });
+  });
+
+  test("user menu shows My Profile link that navigates to profile page", async ({ page }) => {
+    await login(page, ADMIN);
+
+    // Open user menu
+    await page.getByTestId("user-menu").click();
+
+    // Should show My Profile option
+    const profileBtn = page.getByTestId("user-menu-profile");
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
+
+    // Should navigate to profile page
+    await expect(page).toHaveURL(/\/app\/settings\/profile/, { timeout: 5_000 });
+    await expect(page.getByTestId("profile-page")).toBeVisible();
+    await expect(page.getByTestId("profile-name-input")).toBeVisible();
   });
 
   test("unauthenticated user accessing /app/dashboard is redirected", async ({

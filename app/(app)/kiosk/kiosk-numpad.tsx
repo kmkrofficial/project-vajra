@@ -103,7 +103,7 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
       {/* Back to dashboard link — top-right corner */}
       <Link
         href="/app/dashboard"
-        className="absolute right-3 top-3 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="absolute right-3 top-3 z-10 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         data-testid="kiosk-exit-btn"
       >
         ← Dashboard
@@ -111,25 +111,23 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
 
       {/* Success overlay */}
       {state === "success" && (
-        <div className="text-center text-white" data-testid="kiosk-success">
+        <div className="text-center text-white px-4" data-testid="kiosk-success">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="120"
-            height="120"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="mx-auto mb-6"
+            className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
           >
             <path d="M20 6 9 17l-5-5" />
           </svg>
-          <p className="text-5xl font-bold">
+          <p className="text-2xl font-bold sm:text-5xl">
             {kioskAction === "checkout" ? `Goodbye, ${memberName}!` : `Welcome, ${memberName}!`}
           </p>
-          <p className="mt-2 text-2xl font-medium opacity-80">
+          <p className="mt-1 text-base font-medium opacity-80 sm:mt-2 sm:text-2xl">
             {kioskAction === "checkout" ? "Checked out" : "Checked in"}
           </p>
         </div>
@@ -137,42 +135,40 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
 
       {/* Error overlay */}
       {state === "error" && (
-        <div className="text-center text-white" data-testid="kiosk-error">
+        <div className="text-center text-white px-4" data-testid="kiosk-error">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="120"
-            height="120"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="mx-auto mb-6"
+            className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
           >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-          <p className="text-5xl font-bold">{errorMessage}</p>
+          <p className="text-2xl font-bold sm:text-5xl">{errorMessage}</p>
         </div>
       )}
 
       {/* Idle / Loading — Numpad UI */}
       {(state === "idle" || state === "loading") && (
-        <div className="flex w-full max-w-md flex-col items-center gap-8 px-6">
+        <div className="flex w-full max-w-xs flex-col items-center gap-4 px-4 sm:max-w-md sm:gap-8 sm:px-6">
           {/* PIN display */}
           <div className="text-center">
-            <p className="mb-3 text-xl text-muted-foreground">
+            <p className="mb-2 text-base text-muted-foreground sm:mb-3 sm:text-xl">
               Enter your 4-digit PIN
             </p>
             <div
-              className="flex justify-center gap-4"
+              className="flex justify-center gap-2.5 sm:gap-4"
               data-testid="kiosk-pin-display"
             >
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className={`flex size-20 items-center justify-center rounded-xl border-2 text-4xl font-bold transition-colors ${
+                  className={`flex size-14 items-center justify-center rounded-xl border-2 text-2xl font-bold transition-colors sm:size-20 sm:text-4xl ${
                     pin[i]
                       ? "border-primary bg-primary/10 text-foreground"
                       : "border-border bg-muted text-muted-foreground"
@@ -184,13 +180,13 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
             </div>
           </div>
 
-          {/* Numpad grid — min 80px touch targets */}
-          <div className="grid w-full grid-cols-3 gap-3">
+          {/* Numpad grid — responsive touch targets */}
+          <div className="grid w-full grid-cols-3 gap-2 sm:gap-3">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
               <Button
                 key={digit}
                 variant="outline"
-                className="h-20 min-h-[80px] text-3xl font-bold"
+                className="h-14 text-2xl font-bold sm:h-20 sm:min-h-[80px] sm:text-3xl"
                 onClick={() => handleKey(digit)}
                 disabled={state === "loading"}
                 data-testid={`kiosk-key-${digit}`}
@@ -202,7 +198,7 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
             {/* Bottom row: Clear, 0, Submit */}
             <Button
               variant="destructive"
-              className="h-20 min-h-[80px] text-xl font-bold"
+              className="h-14 text-lg font-bold sm:h-20 sm:min-h-[80px] sm:text-xl"
               onClick={() => handleKey("clear")}
               disabled={state === "loading"}
               data-testid="kiosk-key-clear"
@@ -211,7 +207,7 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
             </Button>
             <Button
               variant="outline"
-              className="h-20 min-h-[80px] text-3xl font-bold"
+              className="h-14 text-2xl font-bold sm:h-20 sm:min-h-[80px] sm:text-3xl"
               onClick={() => handleKey("0")}
               disabled={state === "loading"}
               data-testid="kiosk-key-0"
@@ -219,7 +215,7 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
               0
             </Button>
             <Button
-              className="h-20 min-h-[80px] text-xl font-bold"
+              className="h-14 text-lg font-bold sm:h-20 sm:min-h-[80px] sm:text-xl"
               onClick={() => handleKey("submit")}
               disabled={state === "loading" || pin.length !== 4}
               data-testid="kiosk-key-submit"

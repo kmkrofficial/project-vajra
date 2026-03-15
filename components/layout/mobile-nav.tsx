@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  ScanLine,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,7 +18,6 @@ interface TabItem {
 const TABS: TabItem[] = [
   { label: "Home", href: "/app/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/app/members", icon: Users },
-  { label: "Walk-ins", href: "/kiosk", icon: ScanLine },
   { label: "Settings", href: "/app/settings/plans", icon: Settings },
 ];
 

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Dumbbell, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
+import { Dumbbell, LogOut, ChevronDown, Sun, Moon, Monitor, UserPen } from "lucide-react";
 import { signOutUser } from "@/lib/actions/auth";
 import { switchWorkspaceAction } from "@/lib/actions/workspace";
 import { useWorkspace } from "@/components/providers/workspace-provider";
@@ -146,6 +146,11 @@ export function TopBar({
             <DropdownMenuGroup>
               <DropdownMenuLabel>{userName}</DropdownMenuLabel>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push("/app/settings/profile")} data-testid="user-menu-profile">
+              <UserPen className="size-4" strokeWidth={1.5} />
+              My Profile
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut className="size-4" strokeWidth={1.5} />

@@ -91,3 +91,32 @@ export async function getSession() {
   });
   return session;
 }
+
+/**
+ * Update the currently logged-in user's profile (name).
+ */
+export async function updateProfile(
+  name: string
+): Promise<ActionResult> {
+  try {
+    const session = await getSession();
+    if (!session?.user) return { success: false, error: "Not authenticated" };
+
+    const trimmed = name.trim();
+    if (trimmed.length < 2) return { success: false, error: "Name must be at least 2 characters." };
+
+    await auth.api.updateUser({
+      body: { name: trimmed },
+      headers: await headers(),
+    });
+
+    logger.info({ action: "update_profile", userId: session.user.id }, "Profile updated");
+    return { success: true };
+  } catch (error) {
+    logger.error({ err: error, action: "update_profile" }, "Failed to update profile");
+    if (error instanceof APIError) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "An unexpected error occurred." };
+  }
+}
