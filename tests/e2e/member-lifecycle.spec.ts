@@ -106,9 +106,9 @@ test.describe("Member Lifecycle & Privacy", () => {
       timeout: 5_000,
     });
 
-    // Click "View" on the member row to open the privacy modal
+    // Click the view-profile icon button on the member row
     const memberRow = page.getByText("Jane Auto PIN").locator("../..");
-    const viewBtn = memberRow.locator("button", { hasText: "View" });
+    const viewBtn = memberRow.locator("[data-testid^='view-profile-']");
     await viewBtn.click();
 
     // Verify the Profile dialog is open

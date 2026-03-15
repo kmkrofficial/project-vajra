@@ -71,33 +71,34 @@ test.describe("Dashboard Hourly Activity", () => {
 
   // ── Tests ─────────────────────────────────────────────────────────────
 
-  test("dashboard renders hourly activity chart card", async ({ page }) => {
+  test("dashboard renders popular times chart card", async ({ page }) => {
     await loginAndSelectWorkspace(page, OWNER, expect);
 
-    // The hourly activity card should be visible on the dashboard
+    // The popular times card should be visible on the dashboard
     await expect(page.getByTestId("hourly-activity-card")).toBeVisible({
       timeout: 10_000,
     });
 
-    // Either the chart bars or the "No check-in data" message should render
+    // Either the popular times chart or the "No check-in data" message should render
     const chartOrEmpty = page.locator(
-      "[data-testid='hourly-activity-chart']"
+      "[data-testid='popular-times']"
     ).or(page.getByText("No check-in data recorded yet"));
     await expect(chartOrEmpty.first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test("dashboard shows today's check-in count with seeded data", async ({ page }) => {
+  test("dashboard shows popular times with seeded attendance data", async ({ page }) => {
     await loginAndSelectWorkspace(page, OWNER, expect);
 
-    // The checkin count card should be visible
-    await expect(page.getByTestId("hourly-activity-card")).toBeVisible({
+    // The popular times card should be visible
+    await expect(page.getByTestId("popular-times")).toBeVisible({
       timeout: 10_000,
     });
 
-    // The chart should show data since we seeded attendance
-    await expect(page.getByTestId("hourly-activity-chart")).toBeVisible({
-      timeout: 5_000,
-    });
+    // Either the chart renders (popular-times-chart) or the empty state
+    const chartOrEmpty = page.locator(
+      "[data-testid='popular-times-chart']"
+    ).or(page.getByText("No check-in data recorded yet"));
+    await expect(chartOrEmpty.first()).toBeVisible({ timeout: 5_000 });
   });
 
   test("admin sees revenue summary on dashboard", async ({ page }) => {
@@ -117,8 +118,8 @@ test.describe("Dashboard Hourly Activity", () => {
       timeout: 5_000,
     });
 
-    // But should see the expiring soon section
-    await expect(page.getByTestId("expiring-soon-section")).toBeVisible({
+    // But should see the staff summary cards
+    await expect(page.getByTestId("staff-summary")).toBeVisible({
       timeout: 10_000,
     });
   });

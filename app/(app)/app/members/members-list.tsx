@@ -1,7 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Search, MessageCircle, Eye } from "lucide-react";
+/**
+ * Members list with filters, sort, views, and bulk messaging.
+ *
+ * Views (URL-synced via `view` param):
+ *   all | active | expiring | trial | enquiry | pending | expired | churned | new
+ *
+ * Sort: name (A-Z / Z-A), joined (newest / oldest), expiry (soonest / latest)
+ * Search: name or phone
+ * Actions: View profile, Message on WhatsApp (individual + bulk for expiring)
+ */
+
+import { useState, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Search,
+  MessageCircle,
+  Eye,
+  ArrowUpDown,
+  Users,
+  AlertTriangle,
+  UserCheck,
+  UserSearch,
+  ClipboardCheck,
+  UserX,
+  Clock,
+  Sparkles,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +39,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
 import { AddMemberSheet } from "@/components/features/add-member-sheet";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type MemberStatus = "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT" | "TRIAL" | "ENQUIRY" | "CHURNED";
 
 interface Member {
   id: string;
@@ -23,7 +59,7 @@ interface Member {
   phone: string;
   email?: string | null;
   checkinPin?: string | null;
-  status: "ACTIVE" | "EXPIRED" | "PENDING_PAYMENT";
+  status: MemberStatus;
   expiryDate: Date | null;
   createdAt: Date;
 }
@@ -35,15 +71,43 @@ interface Plan {
   durationDays: number;
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> =
-  {
-    ACTIVE: "default",
-    EXPIRED: "destructive",
-    PENDING_PAYMENT: "secondary",
-    TRIAL: "outline",
-    ENQUIRY: "secondary",
-    CHURNED: "destructive",
-  };
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  ACTIVE: "default",
+  EXPIRED: "destructive",
+  PENDING_PAYMENT: "secondary",
+  TRIAL: "outline",
+  ENQUIRY: "secondary",
+  CHURNED: "destructive",
+};
+
+type ViewKey = "all" | "active" | "expiring" | "trial" | "enquiry" | "pending" | "expired" | "churned" | "new";
+
+const VIEWS: { key: ViewKey; label: string; icon: React.ElementType; short: string }[] = [
+  { key: "all", label: "All Members", icon: Users, short: "All" },
+  { key: "active", label: "Active", icon: Users, short: "Active" },
+  { key: "expiring", label: "Expiring Soon", icon: AlertTriangle, short: "Expiring" },
+  { key: "trial", label: "Trial", icon: UserCheck, short: "Trial" },
+  { key: "enquiry", label: "Enquiries", icon: UserSearch, short: "Enquiry" },
+  { key: "pending", label: "Pending Payment", icon: ClipboardCheck, short: "Pending" },
+  { key: "expired", label: "Expired", icon: Clock, short: "Expired" },
+  { key: "churned", label: "Churned", icon: UserX, short: "Churned" },
+  { key: "new", label: "New (7 days)", icon: Sparkles, short: "New" },
+];
+
+type SortKey = "name-asc" | "name-desc" | "joined-new" | "joined-old" | "expiry-soon" | "expiry-late";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name-asc", label: "Name A → Z" },
+  { key: "name-desc", label: "Name Z → A" },
+  { key: "joined-new", label: "Newest first" },
+  { key: "joined-old", label: "Oldest first" },
+  { key: "expiry-soon", label: "Expiry soonest" },
+  { key: "expiry-late", label: "Expiry latest" },
+];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
   return name
@@ -54,14 +118,83 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-function isExpiringSoon(member: Member): boolean {
+function isExpiringSoon(member: Member, days: number = 7): boolean {
   if (member.status !== "ACTIVE" || !member.expiryDate) return false;
   const now = new Date();
-  const threeDays = new Date();
-  threeDays.setDate(now.getDate() + 3);
+  const future = new Date();
+  future.setDate(now.getDate() + days);
   const exp = new Date(member.expiryDate);
-  return exp >= now && exp <= threeDays;
+  return exp >= now && exp <= future;
 }
+
+function isNew(member: Member): boolean {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  return new Date(member.createdAt) >= sevenDaysAgo;
+}
+
+function daysUntilExpiry(member: Member): number | null {
+  if (!member.expiryDate) return null;
+  const diff = new Date(member.expiryDate).getTime() - Date.now();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function filterByView(members: Member[], view: ViewKey): Member[] {
+  switch (view) {
+    case "active":
+      return members.filter((m) => m.status === "ACTIVE");
+    case "expiring":
+      return members.filter((m) => isExpiringSoon(m, 7));
+    case "trial":
+      return members.filter((m) => m.status === "TRIAL");
+    case "enquiry":
+      return members.filter((m) => m.status === "ENQUIRY");
+    case "pending":
+      return members.filter((m) => m.status === "PENDING_PAYMENT");
+    case "expired":
+      return members.filter((m) => m.status === "EXPIRED");
+    case "churned":
+      return members.filter((m) => m.status === "CHURNED");
+    case "new":
+      return members.filter(isNew);
+    default:
+      return members;
+  }
+}
+
+function sortMembers(members: Member[], sort: SortKey): Member[] {
+  const sorted = [...members];
+  switch (sort) {
+    case "name-asc":
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case "name-desc":
+      return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    case "joined-new":
+      return sorted.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    case "joined-old":
+      return sorted.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    case "expiry-soon":
+      return sorted.sort((a, b) => {
+        const ae = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
+        const be = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
+        return ae - be;
+      });
+    case "expiry-late":
+      return sorted.sort((a, b) => {
+        const ae = a.expiryDate ? new Date(a.expiryDate).getTime() : -Infinity;
+        const be = b.expiryDate ? new Date(b.expiryDate).getTime() : -Infinity;
+        return be - ae;
+      });
+    default:
+      return sorted;
+  }
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 export function MembersList({
   members,
@@ -80,23 +213,83 @@ export function MembersList({
   upiQrImageUrl?: string | null;
   whatsappTemplate?: string | null;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const initialView = (searchParams.get("view") as ViewKey) || "all";
+  const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("joined-new");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   const cheapestPlan =
-    plans.length > 0
-      ? plans.reduce((a, b) => (a.price < b.price ? a : b))
-      : null;
+    plans.length > 0 ? plans.reduce((a, b) => (a.price < b.price ? a : b)) : null;
 
-  const filtered = members.filter((m) => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return m.name.toLowerCase().includes(q) || m.phone.includes(q);
-  });
+  // Computed counts per view
+  const viewCounts = useMemo(() => {
+    const counts: Record<ViewKey, number> = {
+      all: members.length,
+      active: 0,
+      expiring: 0,
+      trial: 0,
+      enquiry: 0,
+      pending: 0,
+      expired: 0,
+      churned: 0,
+      new: 0,
+    };
+    for (const m of members) {
+      if (m.status === "ACTIVE") counts.active++;
+      if (m.status === "TRIAL") counts.trial++;
+      if (m.status === "ENQUIRY") counts.enquiry++;
+      if (m.status === "PENDING_PAYMENT") counts.pending++;
+      if (m.status === "EXPIRED") counts.expired++;
+      if (m.status === "CHURNED") counts.churned++;
+      if (isExpiringSoon(m, 7)) counts.expiring++;
+      if (isNew(m)) counts.new++;
+    }
+    return counts;
+  }, [members]);
+
+  // Apply view → search → sort pipeline
+  const result = useMemo(() => {
+    let list = filterByView(members, activeView);
+    if (query) {
+      const q = query.toLowerCase();
+      list = list.filter(
+        (m) => m.name.toLowerCase().includes(q) || m.phone.includes(q)
+      );
+    }
+    return sortMembers(list, sortKey);
+  }, [members, activeView, query, sortKey]);
+
+  function handleViewChange(view: ViewKey) {
+    setActiveView(view);
+    const params = new URLSearchParams(searchParams.toString());
+    if (view === "all") {
+      params.delete("view");
+    } else {
+      params.set("view", view);
+    }
+    router.replace(`/app/members?${params.toString()}`, { scroll: false });
+  }
+
+  function openWhatsApp(member: Member) {
+    const url = generateWhatsAppLink(
+      { name: member.name, phone: member.phone },
+      ownerUpiId ?? "",
+      cheapestPlan?.price ?? 0,
+      gymName,
+      whatsappTemplate
+    );
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // ── Render ──
 
   return (
     <div className="space-y-4">
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-foreground">Members</h1>
         <AddMemberSheet
@@ -108,33 +301,197 @@ export function MembersList({
         />
       </div>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or phone…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="pl-9"
-          data-testid="member-search"
-        />
+      {/* ── View Tabs (scrollable on mobile) ── */}
+      <div
+        className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide"
+        data-testid="member-view-tabs"
+      >
+        {VIEWS.map(({ key, label, icon: Icon, short }) => {
+          const count = viewCounts[key];
+          const isActive = activeView === key;
+          return (
+            <button
+              key={key}
+              onClick={() => handleViewChange(key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors
+                ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              data-testid={`view-tab-${key}`}
+            >
+              <Icon className="size-3.5" strokeWidth={1.5} />
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{short}</span>
+              <span
+                className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none
+                  ${isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Members list */}
-      {filtered.length === 0 ? (
+      {/* ── Search + Sort row ── */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or phone…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+            data-testid="member-search"
+          />
+        </div>
+
+        {/* Sort select */}
+        <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+          <SelectTrigger data-testid="sort-btn" className="w-auto shrink-0 gap-1.5">
+            <ArrowUpDown className="size-3.5" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {SORT_OPTIONS.map((opt) => (
+              <SelectItem
+                key={opt.key}
+                value={opt.key}
+                data-testid={`sort-${opt.key}`}
+              >
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── Expiring Soon banner (shown in expiring view) ── */}
+      {activeView === "expiring" && result.length > 0 && (
+        <div
+          className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50/50 p-3 dark:border-orange-900 dark:bg-orange-950/30"
+          data-testid="expiring-banner"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="size-4 text-orange-500" />
+            <span className="text-sm font-medium text-foreground">
+              {result.length} member{result.length !== 1 ? "s" : ""} expiring within 7 days
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950"
+            onClick={() => {
+              for (const m of result) {
+                openWhatsApp(m);
+              }
+            }}
+            data-testid="bulk-remind-btn"
+          >
+            <MessageCircle className="size-3.5" />
+            Remind All
+          </Button>
+        </div>
+      )}
+
+      {/* ── Trial / Enquiry action banners ── */}
+      {activeView === "trial" && result.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+          <div className="flex items-center gap-2">
+            <UserCheck className="size-4 text-blue-500" />
+            <span className="text-sm font-medium text-foreground">
+              {result.length} trial member{result.length !== 1 ? "s" : ""} — follow up to convert
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
+            onClick={() => {
+              for (const m of result) openWhatsApp(m);
+            }}
+            data-testid="bulk-trial-msg-btn"
+          >
+            <MessageCircle className="size-3.5" />
+            Message All
+          </Button>
+        </div>
+      )}
+
+      {activeView === "enquiry" && result.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50/50 p-3 dark:border-purple-900 dark:bg-purple-950/30">
+          <div className="flex items-center gap-2">
+            <UserSearch className="size-4 text-purple-500" />
+            <span className="text-sm font-medium text-foreground">
+              {result.length} enquir{result.length !== 1 ? "ies" : "y"} — reach out before they churn
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-950"
+            onClick={() => {
+              for (const m of result) openWhatsApp(m);
+            }}
+            data-testid="bulk-enquiry-msg-btn"
+          >
+            <MessageCircle className="size-3.5" />
+            Message All
+          </Button>
+        </div>
+      )}
+
+      {activeView === "new" && result.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50/50 p-3 dark:border-green-900 dark:bg-green-950/30">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-green-500" />
+            <span className="text-sm font-medium text-foreground">
+              {result.length} new member{result.length !== 1 ? "s" : ""} joined in the last 7 days
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-green-300 text-green-700 hover:bg-green-100 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950"
+            onClick={() => {
+              for (const m of result) openWhatsApp(m);
+            }}
+            data-testid="bulk-new-msg-btn"
+          >
+            <MessageCircle className="size-3.5" />
+            Welcome All
+          </Button>
+        </div>
+      )}
+
+      {/* ── Result count ── */}
+      <p className="text-xs text-muted-foreground" data-testid="member-count">
+        {result.length} member{result.length !== 1 ? "s" : ""}
+        {query && ` matching "${query}"`}
+      </p>
+
+      {/* ── Members list ── */}
+      {result.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-muted-foreground">
-            {query ? "No members match your search." : "No members yet."}
+            {query ? "No members match your search." : "No members in this view."}
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((member) => {
-            const expiring = isExpiringSoon(member);
+          {result.map((member) => {
+            const expDays = daysUntilExpiry(member);
+            const expiring = isExpiringSoon(member, 7);
+
             return (
               <div
                 key={member.id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/50"
+                className={`flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50 ${
+                  expiring ? "border-orange-300 dark:border-orange-800" : "border-border"
+                }`}
                 data-testid={`member-row-${member.id}`}
               >
                 {/* Avatar */}
@@ -142,15 +499,21 @@ export function MembersList({
                   <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
                 </Avatar>
 
-                {/* Info — PII hidden, only name + status context */}
+                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
                     {member.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {member.expiryDate
-                      ? `Exp ${new Date(member.expiryDate).toLocaleDateString("en-IN")}`
-                      : "No expiry set"}
+                      ? expDays !== null && expDays >= 0
+                        ? `Expires in ${expDays}d`
+                        : `Expired ${new Date(member.expiryDate).toLocaleDateString("en-IN")}`
+                      : member.status === "TRIAL"
+                        ? "Trial member"
+                        : member.status === "ENQUIRY"
+                          ? "Enquiry"
+                          : "No expiry set"}
                   </p>
                 </div>
 
@@ -159,24 +522,36 @@ export function MembersList({
                   {member.status.replace("_", " ")}
                 </Badge>
 
-                {/* View Profile button */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1"
-                  onClick={() => setSelectedMember(member)}
-                  data-testid={`view-profile-${member.id}`}
-                >
-                  <Eye className="size-3.5" strokeWidth={1.5} />
-                  <span className="hidden sm:inline">View</span>
-                </Button>
+                {/* Actions */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8"
+                    onClick={() => openWhatsApp(member)}
+                    title="Message on WhatsApp"
+                    data-testid={`wa-msg-${member.id}`}
+                  >
+                    <MessageCircle className="size-3.5 text-green-600" strokeWidth={1.5} />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8"
+                    onClick={() => setSelectedMember(member)}
+                    title="View profile"
+                    data-testid={`view-profile-${member.id}`}
+                  >
+                    <Eye className="size-3.5" strokeWidth={1.5} />
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* ─── Member Profile Dialog (Privacy Modal) ─── */}
+      {/* ─── Member Profile Dialog ─── */}
       <Dialog
         open={!!selectedMember}
         onOpenChange={(open) => {
@@ -205,11 +580,7 @@ export function MembersList({
                     <p className="text-base font-semibold text-foreground truncate">
                       {selectedMember.name}
                     </p>
-                    <Badge
-                      variant={
-                        STATUS_VARIANT[selectedMember.status] ?? "secondary"
-                      }
-                    >
+                    <Badge variant={STATUS_VARIANT[selectedMember.status] ?? "secondary"}>
                       {selectedMember.status.replace("_", " ")}
                     </Badge>
                   </div>
@@ -245,18 +616,20 @@ export function MembersList({
                     <span className="text-muted-foreground">Expiry</span>
                     <span className="font-medium text-foreground">
                       {selectedMember.expiryDate
-                        ? new Date(selectedMember.expiryDate).toLocaleDateString(
-                            "en-IN",
-                            { day: "numeric", month: "short", year: "numeric" }
-                          )
+                        ? new Date(selectedMember.expiryDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
                         : "—"}
                     </span>
                     <span className="text-muted-foreground">Joined</span>
                     <span className="font-medium text-foreground">
-                      {new Date(selectedMember.createdAt).toLocaleDateString(
-                        "en-IN",
-                        { day: "numeric", month: "short", year: "numeric" }
-                      )}
+                      {new Date(selectedMember.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -287,19 +660,7 @@ export function MembersList({
                 <div className="flex gap-2">
                   <Button
                     className="flex-1 gap-1.5 bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => {
-                      const url = generateWhatsAppLink(
-                        {
-                          name: selectedMember.name,
-                          phone: selectedMember.phone,
-                        },
-                        ownerUpiId ?? "",
-                        cheapestPlan?.price ?? 0,
-                        gymName,
-                        whatsappTemplate
-                      );
-                      window.open(url, "_blank", "noopener,noreferrer");
-                    }}
+                    onClick={() => openWhatsApp(selectedMember)}
                     data-testid={`profile-wa-msg-${selectedMember.id}`}
                   >
                     <MessageCircle className="size-4" strokeWidth={1.5} />

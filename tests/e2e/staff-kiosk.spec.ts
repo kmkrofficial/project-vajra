@@ -106,8 +106,8 @@ test.describe("Staff RBAC & Kiosk", () => {
     // Revenue summary should NOT be visible for a RECEPTIONIST
     await expect(page.getByTestId("revenue-summary")).not.toBeVisible();
 
-    // But the "Expiring Soon" section should be visible
-    await expect(page.getByTestId("expiring-soon-section")).toBeVisible();
+    // But should see the staff summary cards
+    await expect(page.getByTestId("staff-summary")).toBeVisible();
   });
 
   // ─── Kiosk Test ─────────────────────────────────────────────────────────

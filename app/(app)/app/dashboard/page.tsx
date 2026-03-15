@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
-import { getActivePlans } from "@/lib/dal/plans";
 import { getMembers } from "@/lib/dal/members";
 import type { WorkspaceRole } from "@/lib/workspace-cookie";
 import {
@@ -21,10 +20,13 @@ import {
   AlertTriangle,
   ClipboardCheck,
   Activity,
+  UserCheck,
+  UserSearch,
+  UserX,
 } from "lucide-react";
-import { MembersView } from "./members-view";
-import { HourlyActivityChart } from "./hourly-activity-chart";
-import { getAverageHourlyActivity, getTodayCheckinCount } from "@/lib/dal/attendance";
+import { PopularTimes } from "./popular-times";
+import { getPopularTimes, getTodayCheckinCount } from "@/lib/dal/attendance";
+import { getMonthlyRevenue } from "@/lib/dal/analytics";
 
 /** Roles that can see revenue stats and all-branches filter. */
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
@@ -47,11 +49,11 @@ export default async function DashboardPage() {
     ? ws.branchId ?? workspace.branches[0]?.id ?? null
     : workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
-  const [plans, allMembers, hourlyActivity, todayCheckins] = await Promise.all([
-    getActivePlans(ws.workspaceId),
+  const [allMembers, popularTimes, todayCheckins, monthlyRevenue] = await Promise.all([
     getMembers(ws.workspaceId),
-    getAverageHourlyActivity(ws.workspaceId),
+    getPopularTimes(ws.workspaceId),
     getTodayCheckinCount(ws.workspaceId),
+    isAdmin ? getMonthlyRevenue(ws.workspaceId) : Promise.resolve(0),
   ]);
 
   // For non-admin roles, filter members to only their branch
@@ -60,19 +62,20 @@ export default async function DashboardPage() {
     : allMembers.filter((m) => m.branchId === effectiveBranchId);
 
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
-  const pendingCount = members.filter(
-    (m) => m.status === "PENDING_PAYMENT"
-  ).length;
+  const trialCount = members.filter((m) => m.status === "TRIAL").length;
+  const enquiryCount = members.filter((m) => m.status === "ENQUIRY").length;
+  const pendingCount = members.filter((m) => m.status === "PENDING_PAYMENT").length;
+  const churnedCount = members.filter((m) => m.status === "CHURNED").length;
 
-  // Members expiring within 3 days
+  // Members expiring within 7 days
   const now = new Date();
-  const threeDaysFromNow = new Date();
-  threeDaysFromNow.setDate(now.getDate() + 3);
-  const expiringIn3Days = members.filter(
+  const weekFromNow = new Date();
+  weekFromNow.setDate(now.getDate() + 7);
+  const expiringCount = members.filter(
     (m) =>
       m.status === "ACTIVE" &&
       m.expiryDate &&
-      new Date(m.expiryDate) <= threeDaysFromNow &&
+      new Date(m.expiryDate) <= weekFromNow &&
       new Date(m.expiryDate) >= now
   ).length;
 
@@ -101,7 +104,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* ── Hero Metric Cards ────────────────────────────────────── */}
+      {/* ── KPI Metric Cards ─────────────────────────────────────── */}
       {isAdmin ? (
         <div
           className="grid grid-cols-2 gap-3 md:grid-cols-4"
@@ -111,11 +114,13 @@ export default async function DashboardPage() {
             <CardHeader className="pb-1">
               <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <IndianRupee className="size-3.5" />
-                Today&apos;s Revenue
+                Monthly Revenue
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-green-500">₹0</p>
+              <p className="text-2xl font-bold text-green-500">
+                ₹{monthlyRevenue.toLocaleString("en-IN")}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -135,13 +140,13 @@ export default async function DashboardPage() {
             <CardHeader className="pb-1">
               <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <AlertTriangle className="size-3.5" />
-                Expiring in 3d
+                Expiring in 7d
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-red-500">
-                {expiringIn3Days}
-              </p>
+              <Link href="/app/members?view=expiring" className="text-2xl font-bold text-red-500 hover:underline">
+                {expiringCount}
+              </Link>
             </CardContent>
           </Card>
           <Card>
@@ -152,15 +157,63 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">
+              <Link href="/app/members?view=pending" className="text-2xl font-bold text-foreground hover:underline">
                 {pendingCount}
-              </p>
+              </Link>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserCheck className="size-3.5" />
+                Trial Members
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Link href="/app/members?view=trial" className="text-2xl font-bold text-blue-500 hover:underline">
+                {trialCount}
+              </Link>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserSearch className="size-3.5" />
+                Enquiries
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Link href="/app/members?view=enquiry" className="text-2xl font-bold text-foreground hover:underline">
+                {enquiryCount}
+              </Link>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserX className="size-3.5" />
+                Churned
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-400">{churnedCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Activity className="size-3.5" />
+                Check-ins Today
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{todayCheckins}</p>
             </CardContent>
           </Card>
         </div>
       ) : (
         <div
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
           data-testid="staff-summary"
         >
           <Card>
@@ -178,45 +231,52 @@ export default async function DashboardPage() {
             <CardHeader className="pb-1">
               <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <AlertTriangle className="size-3.5" />
-                Expiring in 3d
+                Expiring in 7d
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-red-500">
-                {expiringIn3Days}
-              </p>
+              <Link href="/app/members?view=expiring" className="text-2xl font-bold text-red-500 hover:underline">
+                {expiringCount}
+              </Link>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Activity className="size-3.5" />
+                Check-ins Today
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{todayCheckins}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserCheck className="size-3.5" />
+                Trial Members
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-500">{trialCount}</p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* ── Hourly Activity Chart ──────────────────────────────── */}
+      {/* ── Popular Times (Google-style) ──────────────────────────── */}
       <Card data-testid="hourly-activity-card">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <Activity className="size-4" />
-            Daily Check-in Estimate
-            <span className="ml-auto text-xs text-foreground">
-              {todayCheckins} today
-            </span>
+            Popular Times
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <HourlyActivityChart data={hourlyActivity} />
+          <PopularTimes data={popularTimes} />
         </CardContent>
       </Card>
-
-      {/* ── Members view with expiring list ──────────────────────── */}
-      <MembersView
-        members={members}
-        plans={plans}
-        defaultBranchId={effectiveBranchId}
-        ownerUpiId={workspace.ownerUpiId}
-        gymName={workspace.name}
-        role={role}
-        upiQrImageUrl={workspace.upiQrImageUrl}
-        whatsappTemplate={workspace.whatsappTemplate}
-      />
     </div>
   );
 }

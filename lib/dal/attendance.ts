@@ -187,3 +187,74 @@ export async function getTodayCheckinCount(workspaceId: string): Promise<number>
 
   return row?.count ?? 0;
 }
+
+/**
+ * Google-style "Popular Times" data: average hourly check-ins per day of week.
+ * Returns 7 entries (0=Sunday .. 6=Saturday), each with 24 hourly averages.
+ * Only hours 5–22 are practically useful for gyms.
+ */
+export async function getPopularTimes(
+  workspaceId: string
+): Promise<{ dow: number; hours: { hour: number; avg: number }[] }[]> {
+  const start = performance.now();
+  const offsetMinutes = -(new Date().getTimezoneOffset());
+
+  try {
+    const rows = await db.execute(sql`
+      WITH local_checkins AS (
+        SELECT
+          EXTRACT(DOW FROM checked_in_at + make_interval(mins => ${offsetMinutes}))::int AS dow,
+          EXTRACT(HOUR FROM checked_in_at + make_interval(mins => ${offsetMinutes}))::int AS h,
+          (checked_in_at + make_interval(mins => ${offsetMinutes}))::date AS d
+        FROM attendance
+        WHERE workspace_id = ${workspaceId}
+      ),
+      hourly_counts AS (
+        SELECT dow, h, d, COUNT(*)::int AS cnt
+        FROM local_checkins
+        GROUP BY dow, h, d
+      ),
+      days_per_dow AS (
+        SELECT dow, COUNT(DISTINCT d)::int AS num_days
+        FROM local_checkins
+        GROUP BY dow
+      ),
+      grid AS (
+        SELECT d.dow, hours.h
+        FROM (SELECT generate_series(0, 6) AS dow) d
+        CROSS JOIN (SELECT generate_series(0, 23) AS h) hours
+      )
+      SELECT
+        grid.dow,
+        grid.h AS hour,
+        COALESCE(
+          ROUND(SUM(hc.cnt)::numeric / GREATEST(dpd.num_days, 1)),
+          0
+        )::int AS avg
+      FROM grid
+      LEFT JOIN hourly_counts hc ON hc.dow = grid.dow AND hc.h = grid.h
+      LEFT JOIN days_per_dow dpd ON dpd.dow = grid.dow
+      GROUP BY grid.dow, grid.h, dpd.num_days
+      ORDER BY grid.dow, grid.h
+    `);
+
+    // Group flat rows into per-day arrays
+    const dayMap = new Map<number, { hour: number; avg: number }[]>();
+    for (let d = 0; d < 7; d++) dayMap.set(d, []);
+
+    for (const r of rows as unknown as { dow: number; hour: number; avg: number }[]) {
+      dayMap.get(Number(r.dow))!.push({ hour: Number(r.hour), avg: Number(r.avg) });
+    }
+
+    const result = Array.from(dayMap.entries()).map(([dow, hours]) => ({ dow, hours }));
+
+    logger.debug(
+      { fn: "getPopularTimes", workspaceId, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return result;
+  } catch (err) {
+    logger.error({ err, fn: "getPopularTimes", workspaceId }, "DAL query failed");
+    throw err;
+  }
+}

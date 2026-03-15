@@ -65,8 +65,8 @@ test.describe("Owner Revenue Flow", () => {
     });
     await expect(page.getByText("₹1500")).toBeVisible();
 
-    // ── Step 4: Navigate to Dashboard and add a member ──
-    await page.goto("/app/dashboard");
+    // ── Step 4: Navigate to Members page and add a member ──
+    await page.goto("/app/members");
     await page.getByTestId("add-member-btn").click();
 
     // Fill out member form
@@ -74,11 +74,11 @@ test.describe("Owner Revenue Flow", () => {
     await page.getByLabel("Phone").fill("9876543210");
 
     // Select the plan
-    await page.getByTestId("plan-select").click();
+    await page.getByTestId("sheet-plan-select").click();
     await page.getByText("1 Month Standard").click();
 
     // Submit to proceed to payment
-    await page.getByTestId("submit-member-btn").click();
+    await page.getByTestId("sheet-submit-member").click();
 
     // ── Step 5: Verify QR code appears ──
     await expect(page.getByTestId("upi-qr-code")).toBeVisible({
@@ -88,7 +88,7 @@ test.describe("Owner Revenue Flow", () => {
     await expect(page.getByText("upi://pay")).toBeVisible();
 
     // ── Step 6: Mark as paid ──
-    await page.getByTestId("mark-paid-btn").click();
+    await page.getByTestId("sheet-mark-paid").click();
 
     // Verify success toast
     await expect(page.locator("[data-sonner-toast]")).toBeVisible({
@@ -124,16 +124,17 @@ test.describe("Owner Revenue Flow", () => {
     await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
-    // Add another member via the dashboard dialog
+    // Add another member via the members page
+    await page.goto("/app/members");
     await page.getByTestId("add-member-btn").click();
 
     await page.getByLabel("Name").fill("UPI Check User");
     await page.getByLabel("Phone").fill("9888777666");
 
-    await page.getByTestId("plan-select").click();
+    await page.getByTestId("sheet-plan-select").click();
     await page.getByText("1 Month Standard").click();
 
-    await page.getByTestId("submit-member-btn").click();
+    await page.getByTestId("sheet-submit-member").click();
 
     // Should show payment step with UPI QR and the workspace UPI ID
     await expect(page.getByTestId("upi-qr-code")).toBeVisible({ timeout: 5_000 });
