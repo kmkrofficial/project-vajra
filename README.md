@@ -25,7 +25,7 @@ A self-hosted B2B SaaS **Gym Operations Platform** built for independent gym own
 - [Multi-Tenancy & RBAC](#multi-tenancy--rbac)
 - [Server Actions API Reference](#server-actions-api-reference)
 - [Data Access Layer (DAL) Reference](#data-access-layer-dal-reference)
-- [Middleware](#middleware)
+- [Proxy](#proxy)
 - [Kiosk Mode](#kiosk-mode)
 - [Payments & WhatsApp Notifications](#payments--whatsapp-notifications)
 - [Analytics Engine](#analytics-engine)
@@ -72,7 +72,7 @@ A self-hosted B2B SaaS **Gym Operations Platform** built for independent gym own
 │  lib/dal/           Data Access Layer (read queries)         │
 │  lib/db/            Drizzle schema + connection              │
 │  components/        UI components (shadcn/ui + features)     │
-│  middleware.ts      Auth redirects (session cookie check)    │
+│  proxy.ts           Auth redirects (session cookie check)    │
 └────────────────┬────────────────────────────────────────────┘
                  │
                  ▼
@@ -267,7 +267,7 @@ project-vajra/
 │   ├── backup-db.sh              # Cron: pg_dump + gzip + rotate
 │   └── start-dev.ps1             # Windows dev startup
 ├── tests/e2e/                    # Playwright E2E test suite
-├── middleware.ts                 # Auth route protection
+├── proxy.ts                     # Auth route protection
 ├── docker-compose.yml            # Local PostgreSQL
 ├── drizzle.config.ts             # Drizzle Kit configuration
 ├── next.config.ts                # Next.js configuration
@@ -357,7 +357,7 @@ export const auth = betterAuth({
 2. Better-Auth creates a `user` row + `account` row (with hashed password) + `session` row
 3. A session cookie (`better-auth.session_token`) is set
 4. All subsequent requests carry this cookie
-5. Middleware (`middleware.ts`) reads the cookie to gate routes
+5. Proxy (`proxy.ts`) reads the cookie to gate routes
 
 ---
 
@@ -542,16 +542,16 @@ All read-only database queries live in `lib/dal/`. Every function explicitly sco
 
 ---
 
-## Middleware
+## Proxy
 
-**File:** `middleware.ts`
+**File:** `proxy.ts`
 
-The middleware runs on every request (except static assets) and performs two checks:
+The proxy runs on every request (except static assets) and performs two checks:
 
 1. **Authenticated user on public route** (`/login`, `/signup`) → redirect to `/workspaces`
 2. **Unauthenticated user on protected route** (anything except `/`, `/login`, `/signup`) → redirect to `/login`
 
-The middleware does **not** check workspace cookies — that's done at the page level in `app/(app)/app/layout.tsx`.
+The proxy does **not** check workspace cookies — that's done at the page level in `app/(app)/app/layout.tsx`.
 
 ---
 

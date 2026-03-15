@@ -19,7 +19,8 @@
  */
 
 import "dotenv/config";
-import { randomBytes, scryptSync, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { scryptAsync } from "@noble/hashes/scrypt.js";
 import postgres from "postgres";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ const DB_URL =
 const WORKSPACE_NAME = "Vajra Iron Temple";
 const OWNER_EMAIL = "demo-owner@vajra.local";
 const OWNER_NAME = "Raj Patel";
-const OWNER_PASSWORD_HASH = hashPassword("DemoPass123!");
+let OWNER_PASSWORD_HASH: string; // assigned in main() via async hashPassword
 
 // Time constants
 const NOW = new Date();
@@ -40,15 +41,27 @@ const ONE_YEAR_AGO = new Date(NOW.getTime() - 365 * ONE_DAY);
 
 // ─── Cryptographic Helpers ──────────────────────────────────────────────────
 
-function hashPassword(password: string): string {
-  // Better-Auth uses scrypt with specific params — we replicate via
-  // the standard Node.js scryptSync for the account.password field.
+/**
+ * Hash a password using the same algorithm and parameters as Better-Auth.
+ * Better-Auth uses @noble/hashes scrypt with N=16384, r=16, p=1, dkLen=64.
+ * Using the same lib ensures hashes are verifiable at login time.
+ */
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
+  const key = await scryptAsync(password.normalize("NFKC"), salt, {
+    N: 16384,
+    r: 16,
+    p: 1,
+    dkLen: 64,
+    maxmem: 128 * 16384 * 16 * 2,
+  });
+  return `${salt}:${Buffer.from(key).toString("hex")}`;
 }
 
 function hashKioskPin(pin: string): string {
+  // Kiosk PINs are verified by our own app code (not Better-Auth),
+  // so the Node built-in scrypt is fine here.
+  const { scryptSync } = require("node:crypto");
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(pin, salt, 64).toString("hex");
   return `${salt}:${hash}`;
@@ -157,6 +170,9 @@ async function main() {
 
   console.log("🔌 Connected to database");
 
+  // Hash the owner password using Better-Auth–compatible scrypt params
+  OWNER_PASSWORD_HASH = await hashPassword("DemoPass123!");
+
   // ── Clean up existing demo data ──
   const [existingWs] = await sql`
     SELECT id FROM gym_workspaces WHERE name = ${WORKSPACE_NAME} LIMIT 1
@@ -189,11 +205,17 @@ async function main() {
   `;
   const ownerUserId = ownerRow.id as string;
 
-  // Upsert account with password
+  // Upsert account with password — update hash on re-seed so login always works
   await sql`
     INSERT INTO "account" (id, account_id, provider_id, user_id, password, created_at, updated_at)
     VALUES (${randomUUID()}, ${ownerUserId}, 'credential', ${ownerUserId}, ${OWNER_PASSWORD_HASH}, ${ONE_YEAR_AGO}, ${ONE_YEAR_AGO})
-    ON CONFLICT DO NOTHING
+    ON CONFLICT (id) DO NOTHING
+  `;
+  // Force-update the password on the existing credential row (covers re-seed)
+  await sql`
+    UPDATE "account"
+    SET password = ${OWNER_PASSWORD_HASH}, updated_at = ${NOW}
+    WHERE user_id = ${ownerUserId} AND provider_id = 'credential'
   `;
   console.log(`   ✓ Owner: ${OWNER_NAME} <${OWNER_EMAIL}> (password: DemoPass123!)`);
 
