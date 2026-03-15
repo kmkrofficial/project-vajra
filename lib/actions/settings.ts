@@ -7,6 +7,7 @@ import { updateWorkspaceSettings } from "@/lib/dal/workspace";
 import { upsertWorkspaceConfig } from "@/lib/dal/config";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 type ActionResult = { success: boolean; error?: string };
 
@@ -141,7 +142,7 @@ export async function updateUpiQrImage(
       return { success: false, error: "Invalid image format." };
     }
     // ~500 KB limit (base64 is ~33% larger than binary)
-    if (imageDataUrl.length > 700_000) {
+    if (imageDataUrl.length > cfg.limits.upiQrMaxBase64Length) {
       return { success: false, error: "Image too large (max 500 KB)." };
     }
   }
@@ -197,8 +198,8 @@ export async function updateWhatsappTemplate(
   const normalized = template?.trim() || null;
 
   // Max 1000 characters
-  if (normalized && normalized.length > 1000) {
-    return { success: false, error: "Template too long (max 1000 characters)." };
+  if (normalized && normalized.length > cfg.limits.whatsappTemplateMaxLength) {
+    return { success: false, error: `Template too long (max ${cfg.limits.whatsappTemplateMaxLength} characters).` };
   }
 
   try {

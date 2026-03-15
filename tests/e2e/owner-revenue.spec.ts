@@ -39,11 +39,6 @@ test.describe("Owner Revenue Flow", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    // ── Step 2: Select workspace ──
-    // Click on the workspace card
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     // ── Step 3: Navigate to Plans and create a plan ──
@@ -105,8 +100,6 @@ test.describe("Owner Revenue Flow", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/settings/plans");
@@ -120,8 +113,6 @@ test.describe("Owner Revenue Flow", () => {
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     // Add another member via the members page

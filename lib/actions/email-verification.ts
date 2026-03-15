@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/services/email";
 import { getSession } from "@/lib/actions/auth";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
+import cfg from "@/lib/config";
 
 type ActionResult = { success: boolean; error?: string };
 
@@ -29,7 +30,7 @@ export async function sendVerificationOtpAction(): Promise<ActionResult> {
   try {
     const otp = generateOtp();
     const hashed = hashOtp(otp);
-    const expires = otpExpiresAt(15); // 15 minutes
+    const expires = otpExpiresAt(); // reads from config.yml
 
     // Delete previous OTP entries for this user
     await db
@@ -53,7 +54,7 @@ export async function sendVerificationOtpAction(): Promise<ActionResult> {
         ``,
         `Your email verification code is: ${otp}`,
         ``,
-        `This code expires in 15 minutes.`,
+        `This code expires in ${cfg.auth.otpTtlMinutes} minutes.`,
         ``,
         `— Vajra Gym Platform`,
       ].join("\n"),
@@ -64,7 +65,7 @@ export async function sendVerificationOtpAction(): Promise<ActionResult> {
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; padding: 16px; background: #f4f4f5; border-radius: 8px; text-align: center; margin: 16px 0;">
           ${otp}
         </div>
-        <p>This code expires in 15 minutes.</p>
+        <p>This code expires in ${cfg.auth.otpTtlMinutes} minutes.</p>
       `,
     });
 

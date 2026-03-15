@@ -14,26 +14,14 @@
  */
 
 import "dotenv/config";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
 
-// ─── Read config.yml ────────────────────────────────────────────────────────
+// ─── Read config.yml via centralised loader ────────────────────────────────
 
-function readRetentionMonths(): number {
-  try {
-    const configPath = resolve(__dirname, "..", "config.yml");
-    const raw = readFileSync(configPath, "utf-8");
-    const match = raw.match(/audit_retention_months:\s*(\d+)/);
-    return match ? Number(match[1]) : 6;
-  } catch {
-    console.warn("⚠ Could not read config.yml, using default retention of 6 months.");
-    return 6;
-  }
-}
+import { loadConfig } from "../lib/config";
 
 // ─── Minimal schema (just what the script needs) ────────────────────────────
 
@@ -59,7 +47,7 @@ async function main() {
     process.exit(1);
   }
 
-  const retentionMonths = readRetentionMonths();
+  const retentionMonths = loadConfig().schedulers.auditRetentionMonths;
   console.log(`  Config → audit_retention_months: ${retentionMonths}`);
 
   const client = postgres(process.env.DATABASE_URL, { prepare: false });

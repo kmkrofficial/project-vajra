@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { signUpUser } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   Card,
   CardContent,
@@ -49,8 +49,7 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+          <FormField label="Full Name" htmlFor="name" required constraint="Min 2 characters">
             <Input
               id="name"
               name="name"
@@ -59,9 +58,8 @@ export default function SignupPage() {
               required
               autoComplete="name"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          </FormField>
+          <FormField label="Email" htmlFor="email" required>
             <Input
               id="email"
               name="email"
@@ -70,9 +68,8 @@ export default function SignupPage() {
               required
               autoComplete="email"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+          </FormField>
+          <FormField label="Password" htmlFor="password" required constraint="Min 8 characters">
             <Input
               id="password"
               name="password"
@@ -82,7 +79,7 @@ export default function SignupPage() {
               autoComplete="new-password"
               minLength={8}
             />
-          </div>
+          </FormField>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating account…" : "Sign Up"}
           </Button>

@@ -156,6 +156,9 @@ export async function cleanupTestData(workspaceId: string) {
  * Resilient login helper.
  * Under heavy parallel load the dev server can be slow to respond to
  * scrypt-based password verification, so we retry once before giving up.
+ *
+ * Single-workspace users are auto-redirected to /app/dashboard.
+ * Multi-workspace users land on /workspaces.
  */
 export async function loginAs(
   page: import("@playwright/test").Page,
@@ -168,7 +171,8 @@ export async function loginAs(
     await page.getByLabel("Password").fill(user.password);
     await page.getByRole("button", { name: "Sign In" }).click();
     try {
-      await expect(page).toHaveURL(/\/workspaces/, { timeout: 12_000 });
+      // Single-workspace users skip /workspaces and land on /app/dashboard
+      await expect(page).toHaveURL(/\/(workspaces|app\/dashboard)/, { timeout: 12_000 });
       return; // success
     } catch {
       if (attempt === 1) throw new Error(`Login failed for ${user.email} after 2 attempts`);
@@ -177,7 +181,9 @@ export async function loginAs(
 }
 
 /**
- * Login and select the first workspace card, ending at /app/dashboard.
+ * Login and ensure we reach /app/dashboard.
+ * For single-workspace users this happens automatically via auto-redirect.
+ * For multi-workspace users the first workspace card is clicked.
  */
 export async function loginAndSelectWorkspace(
   page: import("@playwright/test").Page,
@@ -185,6 +191,9 @@ export async function loginAndSelectWorkspace(
   expect: typeof import("@playwright/test").expect
 ) {
   await loginAs(page, user, expect);
+  // If already at dashboard (single workspace auto-redirect), we're done
+  if (page.url().includes("/app/dashboard")) return;
+  // Otherwise click the first workspace card
   await page.locator("[data-testid^='workspace-card-']").first().click();
   await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 }

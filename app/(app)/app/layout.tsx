@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/actions/auth";
-import { getUserWorkspaces } from "@/lib/dal/workspace";
+import { getUserWorkspaces, getBranches } from "@/lib/dal/workspace";
+import { getEmployeeByUserId, getEmployeeBranches } from "@/lib/dal/employees";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar } from "@/components/layout/top-bar";
+import type { WorkspaceRole } from "@/lib/workspace-cookie";
 
 const WORKSPACE_COOKIE = "vajra_active_workspace";
+const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
 
 export default async function AppLayout({
   children,
@@ -25,12 +28,16 @@ export default async function AppLayout({
 
   // Validate the cookie parses correctly
   let activeWorkspaceId: string;
+  let activeBranchId: string | null = null;
+  let activeRole: WorkspaceRole = "RECEPTIONIST";
   try {
     const parsed = JSON.parse(decodeURIComponent(workspaceCookie));
     if (!parsed.workspaceId) {
       redirect("/workspaces");
     }
     activeWorkspaceId = parsed.workspaceId;
+    activeBranchId = parsed.branchId ?? null;
+    activeRole = parsed.role ?? "RECEPTIONIST";
   } catch {
     redirect("/workspaces");
   }
@@ -39,6 +46,21 @@ export default async function AppLayout({
   const workspaces = await getUserWorkspaces(session.user.id);
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
   const gymName = activeWs?.name ?? "Vajra";
+
+  // Fetch branches for the branch switcher
+  const isAdmin = ADMIN_ROLES.includes(activeRole);
+  let availableBranches: { id: string; name: string }[] = [];
+
+  if (isAdmin) {
+    // Admins see all branches
+    availableBranches = await getBranches(activeWorkspaceId);
+  } else {
+    // Staff see only their assigned branches
+    const employee = await getEmployeeByUserId(activeWorkspaceId, session.user.id);
+    if (employee) {
+      availableBranches = await getEmployeeBranches(employee.id, activeWorkspaceId);
+    }
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-background">
@@ -51,6 +73,9 @@ export default async function AppLayout({
           name: w.name,
           role: w.role,
         }))}
+        branches={availableBranches}
+        activeBranchId={activeBranchId}
+        isAdmin={isAdmin}
       />
 
       <div className="flex flex-1 overflow-hidden">

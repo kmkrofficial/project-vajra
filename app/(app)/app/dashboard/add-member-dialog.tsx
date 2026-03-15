@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { createMember, markAsPaid } from "@/lib/actions/members";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -46,12 +46,14 @@ export function AddMemberDialog({
   plans,
   defaultBranchId,
   upiQrImageUrl,
+  defaultPlanDurationDays = 30,
 }: {
   plans: Plan[];
   defaultBranchId: string | null;
   ownerUpiId: string | null;
   gymName: string;
   upiQrImageUrl?: string | null;
+  defaultPlanDurationDays?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -101,7 +103,7 @@ export function AddMemberDialog({
     if (result.success && result.data) {
       setPaymentData({
         ...result.data,
-        durationDays: selectedPlan?.durationDays ?? 30,
+        durationDays: selectedPlan?.durationDays ?? defaultPlanDurationDays,
       });
       setStep("payment");
     } else {
@@ -154,35 +156,31 @@ export function AddMemberDialog({
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="member-name">Name</Label>
+              <FormField label="Name" htmlFor="member-name" required tooltip="Member's full name as shown in records" constraint="Min 2 characters">
                 <Input
                   id="member-name"
                   name="name"
                   placeholder="Full Name"
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="member-phone">Phone</Label>
+              </FormField>
+              <FormField label="Phone" htmlFor="member-phone" required tooltip="10-digit Indian mobile number for WhatsApp reminders" constraint="10 digits">
                 <Input
                   id="member-phone"
                   name="phone"
                   placeholder="9876543210"
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="member-email">Email (optional)</Label>
+              </FormField>
+              <FormField label="Email" htmlFor="member-email" optional tooltip="Used for email notifications">
                 <Input
                   id="member-email"
                   name="email"
                   type="email"
                   placeholder="member@example.com"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Plan</Label>
+              </FormField>
+              <FormField label="Plan" required tooltip="Membership plan determines price and duration">
                 <Select
                   value={selectedPlanId}
                   onValueChange={(v) => setSelectedPlanId(v ?? "")}
@@ -202,7 +200,7 @@ export function AddMemberDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
               <Button
                 type="submit"
                 className="w-full"

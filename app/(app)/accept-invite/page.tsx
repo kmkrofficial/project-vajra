@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Mail, ShieldCheck, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { acceptInviteAction } from "@/lib/actions/employees";
 
 type Step = "email" | "otp" | "done";
@@ -71,8 +71,7 @@ export default function AcceptInvitePage() {
             </div>
 
             <form onSubmit={handleVerify} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="invite-email">Email Address</Label>
+              <FormField label="Email Address" htmlFor="invite-email" required tooltip="The email address your invitation was sent to">
                 <Input
                   id="invite-email"
                   type="email"
@@ -83,9 +82,8 @@ export default function AcceptInvitePage() {
                   className="h-12 text-base"
                   data-testid="invite-email-input"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="invite-otp">Verification Code</Label>
+              </FormField>
+              <FormField label="Verification Code" htmlFor="invite-otp" required constraint="6-digit code from the invitation email">
                 <Input
                   id="invite-otp"
                   type="text"
@@ -100,7 +98,7 @@ export default function AcceptInvitePage() {
                   className="h-12 text-center text-2xl font-mono tracking-[0.3em]"
                   data-testid="invite-otp-input"
                 />
-              </div>
+              </FormField>
               <Button
                 type="submit"
                 className="h-12 w-full text-base"

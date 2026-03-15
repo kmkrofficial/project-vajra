@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { updateProfile } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ProfileFormProps {
@@ -50,21 +50,26 @@ export default function ProfileForm({ defaultName, email }: ProfileFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="profile-email">Email</Label>
+          <FormField
+            label="Email"
+            htmlFor="profile-email"
+            tooltip="Your login email. Cannot be changed."
+          >
             <Input
               id="profile-email"
               value={email}
               disabled
               className="bg-muted"
             />
-            <p className="text-xs text-muted-foreground">
-              Email cannot be changed.
-            </p>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="profile-name">Full Name</Label>
+          <FormField
+            label="Full Name"
+            htmlFor="profile-name"
+            required
+            tooltip="Your display name across the platform"
+            constraint="Min 2 characters"
+          >
             <Input
               id="profile-name"
               name="name"
@@ -74,7 +79,7 @@ export default function ProfileForm({ defaultName, email }: ProfileFormProps) {
               placeholder="Your name"
               data-testid="profile-name-input"
             />
-          </div>
+          </FormField>
 
           <Button
             type="submit"

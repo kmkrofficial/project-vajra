@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Plus, MapPin, GitBranch, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { FormField } from "@/components/ui/form-field";
 import {
   Dialog,
   DialogContent,
@@ -112,8 +112,13 @@ export function BranchesList({
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="branch-name">Branch Name</Label>
+                <FormField
+                  label="Branch Name"
+                  htmlFor="branch-name"
+                  required
+                  tooltip="Unique name for this gym location"
+                  constraint="Min 2 characters"
+                >
                   <Input
                     id="branch-name"
                     name="name"
@@ -121,18 +126,29 @@ export function BranchesList({
                     required
                     data-testid="branch-name-input"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="branch-phone">Contact Phone (optional)</Label>
+                </FormField>
+
+                <FormField
+                  label="Contact Phone"
+                  htmlFor="branch-phone"
+                  optional
+                  tooltip="Public phone number for this branch"
+                  constraint="10-digit Indian mobile number"
+                >
                   <Input
                     id="branch-phone"
                     name="contactPhone"
                     placeholder="9876543210"
                   />
-                </div>
+                </FormField>
+
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="branch-lat">Latitude</Label>
+                  <FormField
+                    label="Latitude"
+                    htmlFor="branch-lat"
+                    tooltip="Decimal latitude for geolocation-based attendance"
+                    constraint="e.g. 12.9716"
+                  >
                     <Input
                       id="branch-lat"
                       name="latitude"
@@ -140,9 +156,13 @@ export function BranchesList({
                       inputMode="decimal"
                       data-testid="branch-lat-input"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="branch-lng">Longitude</Label>
+                  </FormField>
+                  <FormField
+                    label="Longitude"
+                    htmlFor="branch-lng"
+                    tooltip="Decimal longitude for geolocation-based attendance"
+                    constraint="e.g. 77.5946"
+                  >
                     <Input
                       id="branch-lng"
                       name="longitude"
@@ -150,12 +170,12 @@ export function BranchesList({
                       inputMode="decimal"
                       data-testid="branch-lng-input"
                     />
-                  </div>
+                  </FormField>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Open Google Maps → right-click your gym → copy the Lat/Lng
-                  values. Required for geolocation-based attendance.
+                  Open Google Maps → right-click your gym → copy the Lat/Lng values.
                 </p>
+
                 <Button
                   type="submit"
                   className="w-full"
@@ -235,8 +255,13 @@ export function BranchesList({
           </DialogHeader>
           {editBranch && (
             <form onSubmit={handleUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-branch-name">Branch Name</Label>
+              <FormField
+                label="Branch Name"
+                htmlFor="edit-branch-name"
+                required
+                tooltip="Unique name for this gym location"
+                constraint="Min 2 characters"
+              >
                 <Input
                   id="edit-branch-name"
                   name="name"
@@ -244,9 +269,15 @@ export function BranchesList({
                   required
                   data-testid="edit-branch-name"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-branch-phone">Contact Phone (optional)</Label>
+              </FormField>
+
+              <FormField
+                label="Contact Phone"
+                htmlFor="edit-branch-phone"
+                optional
+                tooltip="Public phone number for this branch"
+                constraint="10-digit Indian mobile number"
+              >
                 <Input
                   id="edit-branch-phone"
                   name="contactPhone"
@@ -254,10 +285,15 @@ export function BranchesList({
                   placeholder="9876543210"
                   data-testid="edit-branch-phone"
                 />
-              </div>
+              </FormField>
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-branch-lat">Latitude</Label>
+                <FormField
+                  label="Latitude"
+                  htmlFor="edit-branch-lat"
+                  tooltip="Decimal latitude for geolocation-based attendance"
+                  constraint="e.g. 12.9716"
+                >
                   <Input
                     id="edit-branch-lat"
                     name="latitude"
@@ -266,9 +302,13 @@ export function BranchesList({
                     inputMode="decimal"
                     data-testid="edit-branch-lat"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-branch-lng">Longitude</Label>
+                </FormField>
+                <FormField
+                  label="Longitude"
+                  htmlFor="edit-branch-lng"
+                  tooltip="Decimal longitude for geolocation-based attendance"
+                  constraint="e.g. 77.5946"
+                >
                   <Input
                     id="edit-branch-lng"
                     name="longitude"
@@ -277,11 +317,12 @@ export function BranchesList({
                     inputMode="decimal"
                     data-testid="edit-branch-lng"
                   />
-                </div>
+                </FormField>
               </div>
               <p className="text-xs text-muted-foreground">
                 Open Google Maps → right-click your gym → copy the Lat/Lng values.
               </p>
+
               <Button
                 type="submit"
                 className="w-full"

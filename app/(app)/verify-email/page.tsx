@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Mail, ShieldCheck, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   sendVerificationOtpAction,
   verifyEmailOtpAction,
@@ -102,8 +102,7 @@ export default function VerifyEmailPage() {
           </div>
 
           <form onSubmit={handleVerify} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="verify-otp">Verification Code</Label>
+            <FormField label="Verification Code" htmlFor="verify-otp" required constraint="6-digit code sent to your email">
               <Input
                 id="verify-otp"
                 type="text"
@@ -119,7 +118,7 @@ export default function VerifyEmailPage() {
                 autoFocus
                 data-testid="verify-otp-input"
               />
-            </div>
+            </FormField>
             <Button
               type="submit"
               className="h-12 w-full text-base"

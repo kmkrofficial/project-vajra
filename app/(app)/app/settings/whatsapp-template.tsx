@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
 import { updateWhatsappTemplate } from "@/lib/actions/settings";
 
 const PLACEHOLDER_DOCS = `Available placeholders:
@@ -22,7 +24,6 @@ export function WhatsappTemplateEditor({
   const [template, setTemplate] = useState(defaultTemplate ?? "");
   const [loading, setLoading] = useState(false);
 
-  // Track whether the value has been changed from the saved one
   const savedTemplate = defaultTemplate ?? "";
   const hasChanges = template !== savedTemplate;
 
@@ -41,7 +42,6 @@ export function WhatsappTemplateEditor({
     setLoading(false);
   }
 
-  // Live preview with sample data
   const previewText = (template.trim() || DEFAULT_PREVIEW)
     .replace(/\{name}/g, "John")
     .replace(/\{gym}/g, "FitZone Gym")
@@ -49,16 +49,21 @@ export function WhatsappTemplateEditor({
     .replace(/\{upiLink}/g, "upi://pay?pa=owner@upi&pn=FitZone&am=999&cu=INR");
 
   return (
-    <div className="space-y-3" data-testid="whatsapp-template-section">
-      <textarea
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        rows={4}
-        value={template}
-        onChange={(e) => setTemplate(e.target.value)}
-        placeholder={DEFAULT_PREVIEW}
-        maxLength={1000}
-        data-testid="whatsapp-template-input"
-      />
+    <div className="space-y-4" data-testid="whatsapp-template-section">
+      <FormField
+        label="WhatsApp Message Template"
+        tooltip="Customize the renewal reminder message sent to members via WhatsApp"
+        constraint="Max 1,000 characters. Leave empty to use the default template."
+      >
+        <Textarea
+          value={template}
+          onChange={(e) => setTemplate(e.target.value)}
+          placeholder={DEFAULT_PREVIEW}
+          maxLength={1000}
+          rows={4}
+          data-testid="whatsapp-template-input"
+        />
+      </FormField>
 
       <pre className="whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-xs text-muted-foreground">
         {PLACEHOLDER_DOCS}
@@ -95,11 +100,6 @@ export function WhatsappTemplateEditor({
           </Button>
         )}
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Customize the message sent when you remind members via WhatsApp. Leave
-        empty to use the default template.
-      </p>
     </div>
   );
 }

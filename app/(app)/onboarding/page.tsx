@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import {
   Dumbbell,
@@ -107,8 +107,7 @@ export default function OnboardingPage() {
               </p>
             </div>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="gymName">Gym Name</Label>
+              <FormField label="Gym Name" htmlFor="gymName" required tooltip="This is what your staff and members will see" constraint="Min 2 characters">
                 <Input
                   id="gymName"
                   placeholder="e.g. Iron Temple Fitness"
@@ -117,9 +116,8 @@ export default function OnboardingPage() {
                   className="h-12 text-base"
                   autoFocus
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="branchName">Primary Branch Name</Label>
+              </FormField>
+              <FormField label="Primary Branch Name" htmlFor="branchName" required tooltip="Your gym's main location name" constraint="Min 2 characters">
                 <Input
                   id="branchName"
                   placeholder="e.g. Main Branch"
@@ -127,7 +125,7 @@ export default function OnboardingPage() {
                   onChange={(e) => setBranchName(e.target.value)}
                   className="h-12 text-base"
                 />
-              </div>
+              </FormField>
             </div>
           </div>
         )}
@@ -145,8 +143,7 @@ export default function OnboardingPage() {
               </p>
             </div>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="upiId">Your UPI ID</Label>
+              <FormField label="Your UPI ID" htmlFor="upiId" required tooltip="Your UPI ID for receiving member payments" constraint="e.g. yourname@paytm">
                 <Input
                   id="upiId"
                   placeholder="yourname@paytm"
@@ -155,7 +152,7 @@ export default function OnboardingPage() {
                   className="h-12 text-base"
                   autoFocus
                 />
-              </div>
+              </FormField>
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
                 <Smartphone className="size-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
                 <p className="text-xs text-muted-foreground">
@@ -181,8 +178,7 @@ export default function OnboardingPage() {
               </p>
             </div>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="planName">Plan Name</Label>
+              <FormField label="Plan Name" htmlFor="planName" required tooltip="The name members see when enrolling" constraint="Min 2 characters">
                 <Input
                   id="planName"
                   placeholder="e.g. 1 Month Standard"
@@ -191,9 +187,8 @@ export default function OnboardingPage() {
                   className="h-12 text-base"
                   autoFocus
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="planPrice">Price (₹)</Label>
+              </FormField>
+              <FormField label="Price (₹)" htmlFor="planPrice" required tooltip="Plan cost in Indian Rupees" constraint="Min ₹1">
                 <div className="relative">
                   <IndianRupee className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />
                   <Input
@@ -206,7 +201,7 @@ export default function OnboardingPage() {
                     className="h-12 pl-9 text-base"
                   />
                 </div>
-              </div>
+              </FormField>
               <p className="text-xs text-muted-foreground">
                 Duration is set to <span className="font-medium text-foreground">30 days</span> by default.
               </p>

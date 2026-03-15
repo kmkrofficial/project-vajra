@@ -93,7 +93,7 @@ const VIEWS: { key: ViewKey; label: string; icon: React.ElementType; short: stri
   { key: "pending", label: "Pending Payment", icon: ClipboardCheck, short: "Pending" },
   { key: "expired", label: "Expired", icon: Clock, short: "Expired" },
   { key: "churned", label: "Churned", icon: UserX, short: "Churned" },
-  { key: "new", label: "New (7 days)", icon: Sparkles, short: "New" },
+  { key: "new", label: "New", icon: Sparkles, short: "New" },
 ];
 
 type SortKey = "name-asc" | "name-desc" | "joined-new" | "joined-old" | "expiry-soon" | "expiry-late";
@@ -118,7 +118,7 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-function isExpiringSoon(member: Member, days: number = 7): boolean {
+function isExpiringSoon(member: Member, days: number): boolean {
   if (member.status !== "ACTIVE" || !member.expiryDate) return false;
   const now = new Date();
   const future = new Date();
@@ -127,10 +127,10 @@ function isExpiringSoon(member: Member, days: number = 7): boolean {
   return exp >= now && exp <= future;
 }
 
-function isNew(member: Member): boolean {
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  return new Date(member.createdAt) >= sevenDaysAgo;
+function isNew(member: Member, days: number): boolean {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return new Date(member.createdAt) >= cutoff;
 }
 
 function daysUntilExpiry(member: Member): number | null {
@@ -139,12 +139,12 @@ function daysUntilExpiry(member: Member): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function filterByView(members: Member[], view: ViewKey): Member[] {
+function filterByView(members: Member[], view: ViewKey, expiringSoonDays: number, newMemberDays: number): Member[] {
   switch (view) {
     case "active":
       return members.filter((m) => m.status === "ACTIVE");
     case "expiring":
-      return members.filter((m) => isExpiringSoon(m, 7));
+      return members.filter((m) => isExpiringSoon(m, expiringSoonDays));
     case "trial":
       return members.filter((m) => m.status === "TRIAL");
     case "enquiry":
@@ -156,7 +156,7 @@ function filterByView(members: Member[], view: ViewKey): Member[] {
     case "churned":
       return members.filter((m) => m.status === "CHURNED");
     case "new":
-      return members.filter(isNew);
+      return members.filter((m) => isNew(m, newMemberDays));
     default:
       return members;
   }
@@ -204,6 +204,9 @@ export function MembersList({
   gymName,
   upiQrImageUrl,
   whatsappTemplate,
+  expiringSoonDays,
+  newMemberDays,
+  defaultPlanDurationDays,
 }: {
   members: Member[];
   plans: Plan[];
@@ -212,6 +215,9 @@ export function MembersList({
   gymName: string;
   upiQrImageUrl?: string | null;
   whatsappTemplate?: string | null;
+  expiringSoonDays: number;
+  newMemberDays: number;
+  defaultPlanDurationDays: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -245,15 +251,15 @@ export function MembersList({
       if (m.status === "PENDING_PAYMENT") counts.pending++;
       if (m.status === "EXPIRED") counts.expired++;
       if (m.status === "CHURNED") counts.churned++;
-      if (isExpiringSoon(m, 7)) counts.expiring++;
-      if (isNew(m)) counts.new++;
+      if (isExpiringSoon(m, expiringSoonDays)) counts.expiring++;
+      if (isNew(m, newMemberDays)) counts.new++;
     }
     return counts;
-  }, [members]);
+  }, [members, expiringSoonDays, newMemberDays]);
 
   // Apply view → search → sort pipeline
   const result = useMemo(() => {
-    let list = filterByView(members, activeView);
+    let list = filterByView(members, activeView, expiringSoonDays, newMemberDays);
     if (query) {
       const q = query.toLowerCase();
       list = list.filter(
@@ -261,7 +267,7 @@ export function MembersList({
       );
     }
     return sortMembers(list, sortKey);
-  }, [members, activeView, query, sortKey]);
+  }, [members, activeView, query, sortKey, expiringSoonDays, newMemberDays]);
 
   function handleViewChange(view: ViewKey) {
     setActiveView(view);
@@ -298,6 +304,7 @@ export function MembersList({
           ownerUpiId={ownerUpiId}
           gymName={gymName}
           upiQrImageUrl={upiQrImageUrl}
+          defaultPlanDurationDays={defaultPlanDurationDays}
         />
       </div>
 
@@ -484,7 +491,7 @@ export function MembersList({
         <div className="space-y-2">
           {result.map((member) => {
             const expDays = daysUntilExpiry(member);
-            const expiring = isExpiringSoon(member, 7);
+            const expiring = isExpiringSoon(member, expiringSoonDays);
 
             return (
               <div

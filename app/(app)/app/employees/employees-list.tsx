@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { FormField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -46,6 +46,7 @@ interface Employee {
   status: "active" | "invited" | "left";
   branchId: string;
   branchName: string | null;
+  assignedBranchIds: string[];
   userId: string | null;
   createdAt: Date;
 }
@@ -79,6 +80,8 @@ export function EmployeesList({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+
+  const branchMap = new Map(branches.map((b) => [b.id, b.name]));
 
   function openEdit(emp: Employee) {
     setEditingEmployee(emp);
@@ -133,6 +136,7 @@ export function EmployeesList({
               emp={emp}
               isOwner={isOwner}
               onEdit={openEdit}
+              branchMap={branchMap}
             />
           ))}
         </div>
@@ -169,10 +173,12 @@ function EmployeeRow({
   emp,
   isOwner,
   onEdit,
+  branchMap,
 }: {
   emp: Employee;
   isOwner: boolean;
   onEdit: (emp: Employee) => void;
+  branchMap: Map<string, string>;
 }) {
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
@@ -217,8 +223,16 @@ function EmployeeRow({
         <p className="truncate text-xs text-muted-foreground">
           {emp.email}
           {emp.phone ? ` · ${emp.phone}` : ""}
-          {emp.branchName ? ` · ${emp.branchName}` : ""}
         </p>
+        {emp.assignedBranchIds.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {emp.assignedBranchIds.map((bid) => (
+              <span key={bid} className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {branchMap.get(bid) ?? "Unknown"}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <Badge variant={ROLE_COLORS[emp.role] ?? "secondary"}>
         {emp.role}
@@ -280,7 +294,13 @@ function InviteForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+
+  function toggleBranch(id: string) {
+    setSelectedBranches((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -292,7 +312,8 @@ function InviteForm({
       email: formData.get("email") as string,
       phone: (formData.get("phone") as string) || undefined,
       role: selectedRole,
-      branchId: selectedBranch,
+      branchId: selectedBranches[0] ?? "",
+      branchIds: selectedBranches,
     });
 
     if (result.success) {
@@ -307,8 +328,13 @@ function InviteForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="emp-name">Full Name</Label>
+      <FormField
+        label="Full Name"
+        htmlFor="emp-name"
+        required
+        tooltip="Employee's display name across the platform"
+        constraint="Min 2 characters"
+      >
         <Input
           id="emp-name"
           name="name"
@@ -316,9 +342,14 @@ function InviteForm({
           required
           data-testid="emp-name-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="emp-email">Email Address</Label>
+      </FormField>
+
+      <FormField
+        label="Email Address"
+        htmlFor="emp-email"
+        required
+        tooltip="Used for login and receiving the invitation code"
+      >
         <Input
           id="emp-email"
           name="email"
@@ -327,11 +358,15 @@ function InviteForm({
           required
           data-testid="emp-email-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="emp-phone">
-          Mobile Number <span className="text-muted-foreground">(optional)</span>
-        </Label>
+      </FormField>
+
+      <FormField
+        label="Mobile Number"
+        htmlFor="emp-phone"
+        optional
+        tooltip="Internal contact number. Not shared with members."
+        constraint="10-digit Indian mobile number"
+      >
         <Input
           id="emp-phone"
           name="phone"
@@ -339,9 +374,13 @@ function InviteForm({
           placeholder="9876543210"
           data-testid="emp-phone-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label>Role</Label>
+      </FormField>
+
+      <FormField
+        label="Role"
+        required
+        tooltip="Manager: full ops access. Trainer: floor access. Receptionist: front-desk only."
+      >
         <Select
           value={selectedRole}
           onValueChange={(v) => setSelectedRole(v ?? "")}
@@ -355,29 +394,39 @@ function InviteForm({
             <SelectItem value="receptionist">Receptionist</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Assigned Branch</Label>
-        <Select
-          value={selectedBranch}
-          onValueChange={(v) => setSelectedBranch(v ?? "")}
-        >
-          <SelectTrigger data-testid="emp-branch-select">
-            <SelectValue placeholder="Select branch" />
-          </SelectTrigger>
-          <SelectContent>
-            {branches.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      </FormField>
+
+      <FormField
+        label="Assigned Branches"
+        required
+        tooltip="Employee can only switch to and view data from these branches"
+        constraint="Select at least one branch"
+      >
+        <div className="rounded-lg border border-input p-2 space-y-1" data-testid="emp-branch-select">
+          {branches.map((b) => (
+            <label
+              key={b.id}
+              className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selectedBranches.includes(b.id)}
+                onChange={() => toggleBranch(b.id)}
+                className="size-4 rounded border-input accent-primary"
+              />
+              {b.name}
+            </label>
+          ))}
+          {branches.length === 0 && (
+            <p className="text-xs text-muted-foreground py-1">No branches available.</p>
+          )}
+        </div>
+      </FormField>
+
       <Button
         type="submit"
         className="w-full"
-        disabled={loading || !selectedRole || !selectedBranch}
+        disabled={loading || !selectedRole || selectedBranches.length === 0}
         data-testid="emp-submit"
       >
         {loading ? "Sending Invite…" : "Send Invitation"}
@@ -403,7 +452,17 @@ function EditForm({
   const [email, setEmail] = useState(employee.email);
   const [phone, setPhone] = useState(employee.phone ?? "");
   const [role, setRole] = useState(employee.role);
-  const [branchId, setBranchId] = useState(employee.branchId);
+  const [selectedBranches, setSelectedBranches] = useState<string[]>(
+    employee.assignedBranchIds.length > 0
+      ? employee.assignedBranchIds
+      : [employee.branchId]
+  );
+
+  function toggleBranch(id: string) {
+    setSelectedBranches((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -414,7 +473,8 @@ function EditForm({
       email,
       phone: phone || undefined,
       role,
-      branchId,
+      branchId: selectedBranches[0] ?? employee.branchId,
+      branchIds: selectedBranches,
     });
 
     if (result.success) {
@@ -429,8 +489,13 @@ function EditForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="edit-name">Full Name</Label>
+      <FormField
+        label="Full Name"
+        htmlFor="edit-name"
+        required
+        tooltip="Employee's display name"
+        constraint="Min 2 characters"
+      >
         <Input
           id="edit-name"
           value={name}
@@ -438,9 +503,14 @@ function EditForm({
           required
           data-testid="edit-name-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="edit-email">Email Address</Label>
+      </FormField>
+
+      <FormField
+        label="Email Address"
+        htmlFor="edit-email"
+        required
+        tooltip="Used for login and receiving the invitation code"
+      >
         <Input
           id="edit-email"
           type="email"
@@ -449,11 +519,15 @@ function EditForm({
           required
           data-testid="edit-email-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="edit-phone">
-          Mobile Number <span className="text-muted-foreground">(optional)</span>
-        </Label>
+      </FormField>
+
+      <FormField
+        label="Mobile Number"
+        htmlFor="edit-phone"
+        optional
+        tooltip="Internal contact number. Not shared with members."
+        constraint="10-digit Indian mobile number"
+      >
         <Input
           id="edit-phone"
           type="tel"
@@ -461,9 +535,13 @@ function EditForm({
           onChange={(e) => setPhone(e.target.value)}
           data-testid="edit-phone-input"
         />
-      </div>
-      <div className="space-y-2">
-        <Label>Role</Label>
+      </FormField>
+
+      <FormField
+        label="Role"
+        required
+        tooltip="Manager: full ops access. Trainer: floor access. Receptionist: front-desk only."
+      >
         <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
           <SelectTrigger data-testid="edit-role-select">
             <SelectValue />
@@ -474,26 +552,36 @@ function EditForm({
             <SelectItem value="receptionist">Receptionist</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Assigned Branch</Label>
-        <Select value={branchId} onValueChange={(v) => v && setBranchId(v)}>
-          <SelectTrigger data-testid="edit-branch-select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {branches.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      </FormField>
+
+      <FormField
+        label="Assigned Branches"
+        required
+        tooltip="Employee can only switch to and view data from these branches"
+        constraint="Select at least one branch"
+      >
+        <div className="rounded-lg border border-input p-2 space-y-1" data-testid="edit-branch-select">
+          {branches.map((b) => (
+            <label
+              key={b.id}
+              className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selectedBranches.includes(b.id)}
+                onChange={() => toggleBranch(b.id)}
+                className="size-4 rounded border-input accent-primary"
+              />
+              {b.name}
+            </label>
+          ))}
+        </div>
+      </FormField>
+
       <Button
         type="submit"
         className="w-full"
-        disabled={loading}
+        disabled={loading || selectedBranches.length === 0}
         data-testid="edit-submit"
       >
         {loading ? "Saving…" : "Save Changes"}

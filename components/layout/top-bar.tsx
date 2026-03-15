@@ -1,12 +1,23 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Dumbbell, LogOut, ChevronDown, Sun, Moon, Monitor, UserPen } from "lucide-react";
+import {
+  Dumbbell,
+  LogOut,
+  ChevronDown,
+  Sun,
+  Moon,
+  Monitor,
+  UserPen,
+  GitBranch,
+  Check,
+  Building2,
+} from "lucide-react";
 import { signOutUser } from "@/lib/actions/auth";
-import { switchWorkspaceAction } from "@/lib/actions/workspace";
+import { switchWorkspaceAction, switchBranchAction } from "@/lib/actions/workspace";
 import { useWorkspace } from "@/components/providers/workspace-provider";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -22,20 +33,30 @@ export function TopBar({
   userName,
   gymName,
   workspaces,
+  branches,
+  activeBranchId,
+  isAdmin,
 }: {
   userName: string;
   gymName: string;
   workspaces: { id: string; name: string; role: string }[];
+  branches: { id: string; name: string }[];
+  activeBranchId: string | null;
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const { activeWorkspaceId, setWorkspace, clearWorkspace } = useWorkspace();
-  const { setTheme, theme } = useTheme();
+  const { setTheme } = useTheme();
   const initials = userName
     .split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const activeBranchName = activeBranchId
+    ? branches.find((b) => b.id === activeBranchId)?.name ?? null
+    : null;
 
   async function handleLogout() {
     clearWorkspace();
@@ -51,12 +72,131 @@ export function TopBar({
     if (result.success) {
       setWorkspace(
         ws.id,
-        null,
-        ws.role as "SUPER_ADMIN" | "MANAGER" | "RECEPTIONIST" | "TRAINER"
+        result.branchId,
+        result.role as "SUPER_ADMIN" | "MANAGER" | "RECEPTIONIST" | "TRAINER"
       );
       router.push("/app/dashboard");
       router.refresh();
     }
+  }
+
+  async function handleSwitchBranch(branchId: string | null) {
+    if (branchId === activeBranchId) return;
+    const result = await switchBranchAction(branchId);
+    if (result.success) {
+      router.refresh();
+    }
+  }
+
+  const hasBranches = branches.length > 0;
+  const hasMultipleBranches = branches.length > 1;
+  const canSwitchBranch = hasBranches && (hasMultipleBranches || isAdmin);
+
+  // ── Hover-triggered branch dropdown state ──────────────────────────
+  const [branchOpen, setBranchOpen] = useState(false);
+  const branchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openBranchMenu = useCallback(() => {
+    if (branchTimeoutRef.current) clearTimeout(branchTimeoutRef.current);
+    setBranchOpen(true);
+  }, []);
+
+  const closeBranchMenuDelayed = useCallback(() => {
+    branchTimeoutRef.current = setTimeout(() => setBranchOpen(false), 200);
+  }, []);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (branchTimeoutRef.current) clearTimeout(branchTimeoutRef.current);
+    };
+  }, []);
+
+  /** Branch label shown in the topbar */
+  const branchLabel = activeBranchName ?? (isAdmin && activeBranchId === null ? "All Branches" : null);
+
+  /** Render the branch portion of the header (hover-dropdown or static text) */
+  function renderBranchSelector() {
+    if (!branchLabel) return null;
+
+    // Only one option, no switching possible — show static text
+    if (!canSwitchBranch) {
+      return (
+        <>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate max-w-[100px] sm:max-w-none text-muted-foreground" data-testid="topbar-branch-name">
+            {branchLabel}
+          </span>
+        </>
+      );
+    }
+
+    // Multiple options — hover-triggered dropdown
+    return (
+      <>
+        <span className="text-muted-foreground">/</span>
+        <div
+          className="relative"
+          onMouseEnter={openBranchMenu}
+          onMouseLeave={closeBranchMenuDelayed}
+        >
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={() => setBranchOpen((v) => !v)}
+            data-testid="topbar-branch-name"
+          >
+            <span className="truncate max-w-[100px] sm:max-w-none">{branchLabel}</span>
+            <ChevronDown className="size-3 shrink-0" strokeWidth={1.5} />
+          </button>
+
+          {branchOpen && (
+            <div
+              className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-border bg-popover p-1 shadow-md animate-in fade-in slide-in-from-top-1 duration-150"
+              onMouseEnter={openBranchMenu}
+              onMouseLeave={closeBranchMenuDelayed}
+              data-testid="branch-dropdown"
+            >
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSwitchBranch(null);
+                    setBranchOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
+                    activeBranchId === null ? "font-semibold text-primary" : "text-foreground"
+                  }`}
+                  data-testid="branch-all"
+                >
+                  <Building2 className="size-3.5 shrink-0" strokeWidth={1.5} />
+                  All Branches
+                  {activeBranchId === null && <Check className="ml-auto size-3.5" strokeWidth={2} />}
+                </button>
+              )}
+              {branches.map((b) => (
+                <button
+                  type="button"
+                  key={b.id}
+                  onClick={() => {
+                    handleSwitchBranch(b.id);
+                    setBranchOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
+                    activeBranchId === b.id ? "font-semibold text-primary" : "text-foreground"
+                  }`}
+                  data-testid={`branch-${b.id}`}
+                >
+                  <GitBranch className="size-3.5 shrink-0" strokeWidth={1.5} />
+                  {b.name}
+                  {activeBranchId === b.id && <Check className="ml-auto size-3.5" strokeWidth={2} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </>
+    );
   }
 
   return (
@@ -70,7 +210,7 @@ export function TopBar({
         <span className="text-base font-bold tracking-tight text-foreground">Vajra</span>
       </div>
 
-      {/* Center: Workspace switcher */}
+      {/* Center: Workspace + Branch */}
       <div className="hidden md:block" />
       {workspaces.length > 1 ? (
         <DropdownMenu>
@@ -79,8 +219,8 @@ export function TopBar({
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
             data-testid="workspace-switcher"
           >
-            {gymName}
-            <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <span className="truncate max-w-[140px] sm:max-w-none">{gymName}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" sideOffset={8}>
             <DropdownMenuGroup>
@@ -101,11 +241,19 @@ export function TopBar({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <span className="text-sm font-medium text-foreground">{gymName}</span>
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <span className="truncate max-w-[140px] sm:max-w-none">{gymName}</span>
+        </span>
       )}
+      {/* Branch selector — hover dropdown */}
+      <div className="flex items-center gap-1.5 text-sm font-medium">
+        {renderBranchSelector()}
+      </div>
 
       {/* Right: Theme toggle + User menu */}
       <div className="flex items-center gap-1">
+
+        {/* Theme toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger
             id="theme-toggle-trigger"
@@ -132,6 +280,7 @@ export function TopBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger
             id="user-menu-trigger"

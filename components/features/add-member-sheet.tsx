@@ -9,7 +9,7 @@ import { createMember, markAsPaid } from "@/lib/actions/members";
 import { memberFormSchema } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -50,12 +50,14 @@ export function AddMemberSheet({
   ownerUpiId,
   gymName,
   upiQrImageUrl,
+  defaultPlanDurationDays = 30,
 }: {
   plans: Plan[];
   defaultBranchId: string | null;
   ownerUpiId: string | null;
   gymName: string;
   upiQrImageUrl?: string | null;
+  defaultPlanDurationDays?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -118,7 +120,7 @@ export function AddMemberSheet({
     if (result.success && result.data) {
       setPaymentData({
         ...result.data,
-        durationDays: selectedPlan?.durationDays ?? 30,
+        durationDays: selectedPlan?.durationDays ?? defaultPlanDurationDays,
       });
       setStep("payment");
     } else {
@@ -175,44 +177,61 @@ export function AddMemberSheet({
               onSubmit={handleFormSubmit}
               className="space-y-4 px-4 pb-4"
             >
-              <div className="space-y-2">
-                <Label htmlFor="sheet-name">Name</Label>
+              <FormField
+                label="Name"
+                htmlFor="sheet-name"
+                required
+                tooltip="Member's full name as shown in records"
+                constraint="Min 2 characters"
+                error={fieldErrors.name}
+              >
                 <Input
                   id="sheet-name"
                   name="name"
                   placeholder="Full Name"
                   required
                 />
-                {fieldErrors.name && (
-                  <p className="text-xs text-destructive">{fieldErrors.name}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sheet-phone">Phone</Label>
+              </FormField>
+
+              <FormField
+                label="Phone"
+                htmlFor="sheet-phone"
+                required
+                tooltip="10-digit Indian mobile number for WhatsApp reminders"
+                constraint="10 digits"
+                error={fieldErrors.phone}
+              >
                 <Input
                   id="sheet-phone"
                   name="phone"
                   placeholder="9876543210"
                   required
                 />
-                {fieldErrors.phone && (
-                  <p className="text-xs text-destructive">{fieldErrors.phone}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sheet-email">Email (optional)</Label>
+              </FormField>
+
+              <FormField
+                label="Email"
+                htmlFor="sheet-email"
+                optional
+                tooltip="Used for email notifications if configured"
+                error={fieldErrors.email}
+              >
                 <Input
                   id="sheet-email"
                   name="email"
                   type="email"
                   placeholder="member@example.com"
                 />
-                {fieldErrors.email && (
-                  <p className="text-xs text-destructive">{fieldErrors.email}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sheet-kiosk-pin">Kiosk PIN (4 digits)</Label>
+              </FormField>
+
+              <FormField
+                label="Kiosk PIN"
+                htmlFor="sheet-kiosk-pin"
+                optional
+                tooltip="4-digit PIN for self-service kiosk check-in"
+                constraint="Exactly 4 digits. Leave blank to auto-generate."
+                error={fieldErrors.kioskPin}
+              >
                 <Input
                   id="sheet-kiosk-pin"
                   name="kioskPin"
@@ -221,15 +240,14 @@ export function AddMemberSheet({
                   placeholder="e.g. 1234"
                   data-testid="sheet-kiosk-pin"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Leave blank to auto-generate a secure PIN.
-                </p>
-                {fieldErrors.kioskPin && (
-                  <p className="text-xs text-destructive">{fieldErrors.kioskPin}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Plan</Label>
+              </FormField>
+
+              <FormField
+                label="Plan"
+                required
+                tooltip="Membership plan determines price and duration"
+                error={fieldErrors.planId}
+              >
                 <Select
                   value={selectedPlanId}
                   onValueChange={(v) => setSelectedPlanId(v ?? "")}
@@ -248,10 +266,8 @@ export function AddMemberSheet({
                     })}
                   </SelectContent>
                 </Select>
-                {fieldErrors.planId && (
-                  <p className="text-xs text-destructive">{fieldErrors.planId}</p>
-                )}
-              </div>
+              </FormField>
+
               <Button
                 type="submit"
                 className="h-12 w-full text-base"

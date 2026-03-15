@@ -1,11 +1,11 @@
 # Project Vajra — Application Configuration
-# This file is read by dev scripts and cron workers to centralise runtime settings.
+# This file is the SINGLE source of truth for all runtime-configurable values.
+# Nothing should be hardcoded in the codebase — every tuneable lives here.
 
 server:
   port: 3000
 
 # ── Scheduler / Cron Configuration ───────────────────────────────────────────
-# All durations are integers. The cron workers read these at startup.
 schedulers:
   # Days a TRIAL member can use the gym before being moved to PENDING_PAYMENT
   trial_period_days: 2
@@ -15,3 +15,64 @@ schedulers:
 
   # Months of audit log history to retain (older logs are deleted)
   audit_retention_months: 3
+
+  # Days to retain database backups before auto-deletion
+  backup_retention_days: 14
+
+# ── Kiosk ─────────────────────────────────────────────────────────────────────
+kiosk:
+  # Days before expiry to show a renewal warning on the kiosk
+  expiry_warning_days: 3
+
+  # Milliseconds to display the result overlay (success/error/warning) before reset
+  overlay_reset_ms: 4000
+
+# ── Analytics & Dashboard Defaults ────────────────────────────────────────────
+analytics:
+  # Days ahead to count "expiring soon" members
+  expiring_soon_days: 7
+
+  # Days to consider a member "new" (joined within this window)
+  new_member_days: 7
+
+  # Months of revenue history shown in the revenue chart
+  revenue_chart_months: 6
+
+  # Days lookback window for churn count
+  churn_window_days: 30
+
+  # Days for week-over-week growth comparison
+  wow_growth_days: 7
+
+# ── Auth / Security ───────────────────────────────────────────────────────────
+auth:
+  # Minutes until a one-time password (OTP) expires
+  otp_ttl_minutes: 15
+
+  # Hours until an employee invite token expires
+  invite_ttl_hours: 24
+
+  # Cookie max-age for the active-workspace cookie (seconds)
+  workspace_cookie_max_age: 2592000   # 30 days
+
+  # HSTS max-age header value (seconds)
+  hsts_max_age: 63072000              # 2 years
+
+# ── Limits / Validation ──────────────────────────────────────────────────────
+limits:
+  # Maximum base64 length for UPI QR image upload (~500 KB binary)
+  upi_qr_max_base64_length: 700000
+
+  # Maximum characters for a custom WhatsApp message template
+  whatsapp_template_max_length: 1000
+
+  # Maximum characters for a plan description
+  plan_description_max_length: 500
+
+  # Default page size when fetching audit logs
+  audit_log_page_size: 100
+
+# ── Onboarding ────────────────────────────────────────────────────────────────
+onboarding:
+  # Default duration (days) for the first plan created during onboarding
+  default_plan_duration_days: 30

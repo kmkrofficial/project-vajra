@@ -16,12 +16,14 @@ import {
   findPendingInvite,
   findPendingInviteByEmail,
   acceptEmployeeInvite,
+  setEmployeeBranches,
 } from "@/lib/dal/employees";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { generateOtp, hashOtp, inviteExpiresAt, verifyOtp } from "@/lib/services/otp";
 import { sendEmail } from "@/lib/services/email";
 import { employeeInviteSchema, employeeEditSchema, otpSchema } from "@/lib/validations";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 type ActionResult = { success: boolean; error?: string };
 
@@ -37,6 +39,7 @@ export async function inviteEmployeeAction(data: {
   phone?: string;
   role: string;
   branchId: string;
+  branchIds?: string[];
 }): Promise<ActionResult> {
   const parsed = employeeInviteSchema.safeParse(data);
   if (!parsed.success) {
@@ -82,6 +85,10 @@ export async function inviteEmployeeAction(data: {
     const otp = generateOtp();
     const hashed = hashOtp(otp);
 
+    // Set multi-branch assignments if provided
+    const branchIds = data.branchIds ?? [parsed.data.branchId];
+    await setEmployeeBranches(employee.id, branchIds);
+
     await createEmployeeInvite({
       employeeId: employee.id,
       workspaceId: ws.workspaceId,
@@ -106,7 +113,7 @@ export async function inviteEmployeeAction(data: {
         `2. Go to the invite acceptance page`,
         `3. Enter your email and the verification code above`,
         ``,
-        `This code expires in 24 hours.`,
+        `This code expires in ${cfg.auth.inviteTtlHours} hours.`,
         ``,
         `— Vajra Gym Platform`,
       ].join("\n"),
@@ -118,7 +125,7 @@ export async function inviteEmployeeAction(data: {
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; padding: 16px; background: #f4f4f5; border-radius: 8px; text-align: center; margin: 16px 0;">
           ${otp}
         </div>
-        <p>This code expires in 24 hours.</p>
+        <p>This code expires in ${cfg.auth.inviteTtlHours} hours.</p>
         <p>To accept, sign up or log in, then enter your email and this code on the invite acceptance page.</p>
       `,
     });
@@ -183,7 +190,7 @@ export async function resendInviteAction(employeeId: string): Promise<ActionResu
         `This is a reminder of your pending invitation.`,
         `Your new verification code is: ${otp}`,
         ``,
-        `This code expires in 24 hours.`,
+        `This code expires in ${cfg.auth.inviteTtlHours} hours.`,
         ``,
         `— Vajra Gym Platform`,
       ].join("\n"),
@@ -323,6 +330,7 @@ export async function editEmployeeAction(
     phone?: string;
     role: string;
     branchId: string;
+    branchIds?: string[];
   }
 ): Promise<ActionResult> {
   const parsed = employeeEditSchema.safeParse(data);
@@ -362,6 +370,10 @@ export async function editEmployeeAction(
     });
 
     if (!updated) return { success: false, error: "Employee not found." };
+
+    // Update multi-branch assignments
+    const branchIds = data.branchIds ?? [parsed.data.branchId];
+    await setEmployeeBranches(employeeId, branchIds);
 
     await insertAuditLog({
       workspaceId: ws.workspaceId,

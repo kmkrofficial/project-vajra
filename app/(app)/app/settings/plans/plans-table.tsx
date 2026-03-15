@@ -12,7 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +21,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { togglePlan, updatePlanAction } from "@/lib/actions/plans";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
+
+interface Branch {
+  id: string;
+  name: string;
+}
 
 interface Plan {
   id: string;
@@ -31,12 +44,16 @@ interface Plan {
   price: number;
   durationDays: number;
   active: boolean;
+  branchId: string | null;
   createdAt: Date;
 }
 
-export function PlansTable({ plans }: { plans: Plan[] }) {
+export function PlansTable({ plans, branches }: { plans: Plan[]; branches: Branch[] }) {
   const [editPlan, setEditPlan] = useState<Plan | null>(null);
+  const [editBranch, setEditBranch] = useState<string>("__all__");
   const [loading, setLoading] = useState(false);
+
+  const branchMap = Object.fromEntries(branches.map((b) => [b.id, b.name]));
 
   async function handleToggle(planId: string, currentActive: boolean) {
     const result = await togglePlan(planId, !currentActive);
@@ -64,11 +81,13 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
       return;
     }
 
+    const branchId = editBranch === "__all__" ? null : editBranch;
     const result = await updatePlanAction(editPlan.id, {
       name,
       description: description?.trim() || null,
       price,
       durationDays,
+      branchId,
     });
 
     if (result.success) {
@@ -97,6 +116,7 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              {branches.length > 1 && <TableHead>Branch</TableHead>}
               <TableHead className="text-right">Price (₹)</TableHead>
               <TableHead className="text-right">Duration</TableHead>
               <TableHead>Status</TableHead>
@@ -116,6 +136,13 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                     )}
                   </div>
                 </TableCell>
+                {branches.length > 1 && (
+                  <TableCell>
+                    <Badge variant="outline">
+                      {plan.branchId ? (branchMap[plan.branchId] ?? "Unknown") : "All Branches"}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="text-right">₹{plan.price}</TableCell>
                 <TableCell className="text-right">
                   {plan.durationDays} days
@@ -129,7 +156,10 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setEditPlan(plan)}
+                    onClick={() => {
+                      setEditPlan(plan);
+                      setEditBranch(plan.branchId ?? "__all__");
+                    }}
                     data-testid={`edit-plan-${plan.id}`}
                   >
                     <Pencil className="size-3.5" strokeWidth={1.5} />
@@ -149,7 +179,10 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
         </Table>
       </div>
 
-      <Dialog open={!!editPlan} onOpenChange={(open) => !open && setEditPlan(null)}>
+      <Dialog open={!!editPlan} onOpenChange={(open) => {
+        if (!open) setEditPlan(null);
+        else if (editPlan) setEditBranch(editPlan.branchId ?? "__all__");
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Plan</DialogTitle>
@@ -159,8 +192,13 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
           </DialogHeader>
           {editPlan && (
             <form onSubmit={handleUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-plan-name">Plan Name</Label>
+              <FormField
+                label="Plan Name"
+                htmlFor="edit-plan-name"
+                required
+                tooltip="Displayed to members during enrollment"
+                constraint="Min 2 characters"
+              >
                 <Input
                   id="edit-plan-name"
                   name="name"
@@ -168,23 +206,33 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                   required
                   data-testid="edit-plan-name"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-plan-description">Description (optional)</Label>
-                <textarea
+              </FormField>
+
+              <FormField
+                label="Description"
+                htmlFor="edit-plan-description"
+                optional
+                tooltip="Optional details shown on the plan card. Supports Markdown."
+                constraint="Max 500 characters"
+              >
+                <Textarea
                   id="edit-plan-description"
                   name="description"
                   defaultValue={editPlan.description ?? ""}
                   maxLength={500}
                   rows={3}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Describe what's included… Markdown supported."
+                  placeholder="Describe what's included…"
                   data-testid="edit-plan-description"
                 />
-                <p className="text-xs text-muted-foreground">Max 500 characters. Markdown supported.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-plan-price">Price (₹)</Label>
+              </FormField>
+
+              <FormField
+                label="Price (₹)"
+                htmlFor="edit-plan-price"
+                required
+                tooltip="Plan cost in Indian Rupees"
+                constraint="Min ₹1"
+              >
                 <Input
                   id="edit-plan-price"
                   name="price"
@@ -194,9 +242,15 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                   required
                   data-testid="edit-plan-price"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-plan-duration">Duration (days)</Label>
+              </FormField>
+
+              <FormField
+                label="Duration (days)"
+                htmlFor="edit-plan-duration"
+                required
+                tooltip="How long the membership lasts after activation"
+                constraint="Min 1 day"
+              >
                 <Input
                   id="edit-plan-duration"
                   name="durationDays"
@@ -206,7 +260,29 @@ export function PlansTable({ plans }: { plans: Plan[] }) {
                   required
                   data-testid="edit-plan-duration"
                 />
-              </div>
+              </FormField>
+
+              {branches.length > 1 && (
+                <FormField
+                  label="Branch"
+                  tooltip="Assign to a specific branch or make available everywhere"
+                >
+                  <Select value={editBranch} onValueChange={(v) => setEditBranch(v ?? "__all__")}>
+                    <SelectTrigger data-testid="edit-plan-branch-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Branches</SelectItem>
+                      {branches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              )}
+
               <Button
                 type="submit"
                 className="w-full"

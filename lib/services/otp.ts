@@ -1,5 +1,6 @@
 import { randomInt, scryptSync, timingSafeEqual, randomBytes } from "node:crypto";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 /**
  * OTP generation and verification service.
@@ -39,12 +40,12 @@ export function verifyOtp(otp: string, stored: string): boolean {
   }
 }
 
-/** Default OTP expiry: 15 minutes from now. */
-export function otpExpiresAt(minutesFromNow = 15): Date {
+/** OTP expiry: configurable minutes from now (default from config.yml). */
+export function otpExpiresAt(minutesFromNow = cfg.auth.otpTtlMinutes): Date {
   return new Date(Date.now() + minutesFromNow * 60 * 1000);
 }
 
-/** Invite token expiry: 24 hours from now. */
-export function inviteExpiresAt(): Date {
-  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+/** Invite token expiry: configurable hours from now (default from config.yml). */
+export function inviteExpiresAt(hoursFromNow = cfg.auth.inviteTtlHours): Date {
+  return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
 }

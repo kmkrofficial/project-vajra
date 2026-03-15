@@ -97,10 +97,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    // Select the workspace
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     // Revenue summary should NOT be visible for a RECEPTIONIST
@@ -118,10 +114,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    // Select workspace to set the branch cookie
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     // Navigate to kiosk
@@ -149,9 +141,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/kiosk");
@@ -165,10 +154,11 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByTestId("kiosk-key-submit").click();
 
     // Should show error state
-    await expect(page.getByTestId("kiosk-error")).toBeVisible({
+    await expect(page.getByTestId("kiosk-denied")).toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+    await expect(page.getByText(/Expired Kiosk Member/)).toBeVisible();
+    await expect(page.getByText(/membership has expired/i)).toBeVisible();
   });
 
   // ── Additional edge cases ───────────────────────────────────────────
@@ -179,8 +169,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/kiosk");
@@ -214,8 +202,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/kiosk");
@@ -258,8 +244,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/kiosk");
@@ -270,6 +254,6 @@ test.describe("Staff RBAC & Kiosk", () => {
     await page.getByTestId("kiosk-key-4").click();
     await page.getByTestId("kiosk-key-submit").click();
 
-    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId("kiosk-denied")).toBeVisible({ timeout: 5_000 });
   });
 });

@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
+import { loadConfig } from "./lib/config";
+
+const cfg = loadConfig();
 
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   {
     key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
+    value: `max-age=${cfg.auth.hstsMaxAge}; includeSubDomains; preload`,
   },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },

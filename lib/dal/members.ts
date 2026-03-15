@@ -3,17 +3,20 @@ import { db } from "@/lib/db";
 import { members, transactions } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
-/** Get all members for a workspace. */
-export async function getMembers(workspaceId: string) {
+/** Get all members for a workspace, optionally filtered by branch. */
+export async function getMembers(workspaceId: string, branchId?: string | null) {
   const start = performance.now();
   try {
+    const conditions = [eq(members.workspaceId, workspaceId)];
+    if (branchId) conditions.push(eq(members.branchId, branchId));
+
     const result = await db
       .select()
       .from(members)
-      .where(eq(members.workspaceId, workspaceId))
+      .where(and(...conditions))
       .orderBy(members.createdAt);
 
-    logger.debug({ fn: "getMembers", workspaceId, count: result.length, ms: Math.round(performance.now() - start) }, "DAL query complete");
+    logger.debug({ fn: "getMembers", workspaceId, branchId, count: result.length, ms: Math.round(performance.now() - start) }, "DAL query complete");
     return result;
   } catch (err) {
     logger.error({ err, fn: "getMembers", workspaceId }, "DAL query failed");

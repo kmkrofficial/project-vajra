@@ -103,6 +103,7 @@ export const branches = pgTable("branches", {
     .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   contactPhone: text("contact_phone"),
+  kioskPin: text("kiosk_pin"),
   latitude: numeric("latitude", { precision: 10, scale: 7 }),
   longitude: numeric("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -140,6 +141,9 @@ export const plans = pgTable("plans", {
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => gymWorkspaces.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id").references(() => branches.id, {
+    onDelete: "cascade",
+  }),
   name: text("name").notNull(),
   description: varchar("description", { length: 500 }),
   price: integer("price").notNull(),
@@ -223,6 +227,22 @@ export const employeeStatusEnum = pgEnum("employee_status", [
   "invited",
   "left",
 ]);
+
+/**
+ * Junction table: employee ↔ branch (many-to-many).
+ * An employee can be assigned to multiple branches.
+ * The `employees.branchId` column remains as the "primary" branch for backward compat.
+ */
+export const employeeBranches = pgTable("employee_branches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 /** Staff member record. Optionally linked to an auth user via `userId`. */
 export const employees = pgTable("employees", {
@@ -378,6 +398,10 @@ export const planRelations = relations(plans, ({ one, many }) => ({
     fields: [plans.workspaceId],
     references: [gymWorkspaces.id],
   }),
+  branch: one(branches, {
+    fields: [plans.branchId],
+    references: [branches.id],
+  }),
   transactions: many(transactions),
 }));
 
@@ -449,6 +473,18 @@ export const employeeRelations = relations(employees, ({ one, many }) => ({
     references: [user.id],
   }),
   invites: many(employeeInvites),
+  assignedBranches: many(employeeBranches),
+}));
+
+export const employeeBranchRelations = relations(employeeBranches, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeBranches.employeeId],
+    references: [employees.id],
+  }),
+  branch: one(branches, {
+    fields: [employeeBranches.branchId],
+    references: [branches.id],
+  }),
 }));
 
 export const employeeInviteRelations = relations(employeeInvites, ({ one }) => ({

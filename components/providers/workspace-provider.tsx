@@ -50,20 +50,21 @@ function parseWorkspaceCookie(): {
 function setWorkspaceCookie(
   workspaceId: string,
   branchId: string | null,
-  role: WorkspaceRole
+  role: WorkspaceRole,
+  maxAge: number
 ) {
   const value = encodeURIComponent(
     JSON.stringify({ workspaceId, branchId, role })
   );
-  // Secure, SameSite=Lax, 30-day expiry, path=/
-  document.cookie = `${COOKIE_NAME}=${value}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+  // Secure, SameSite=Lax, configurable expiry, path=/
+  document.cookie = `${COOKIE_NAME}=${value}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
 function clearWorkspaceCookie() {
   document.cookie = `${COOKIE_NAME}=; path=/; max-age=0`;
 }
 
-export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+export function WorkspaceProvider({ children, cookieMaxAge = 2592000 }: { children: React.ReactNode; cookieMaxAge?: number }) {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
     null
   );
@@ -85,9 +86,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setActiveWorkspaceId(wid);
       setActiveBranchId(bid);
       setRole(r);
-      setWorkspaceCookie(wid, bid, r);
+      setWorkspaceCookie(wid, bid, r, cookieMaxAge);
     },
-    []
+    [cookieMaxAge]
   );
 
   const clearWorkspace = useCallback(() => {

@@ -70,8 +70,6 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
@@ -104,7 +102,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       timeout: 5_000,
     });
     await expect(page.getByText("Welcome, Kiosk Gym Member!")).toBeVisible();
-    await expect(page.getByText("Checked in")).toBeVisible();
+    await expect(page.getByText("Have a great workout!")).toBeVisible();
 
     // Verify attendance record was created in DB
     const sql = getTestDb();
@@ -143,7 +141,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       timeout: 5_000,
     });
     await expect(page.getByText("Goodbye, Kiosk Gym Member!")).toBeVisible();
-    await expect(page.getByText("Checked out")).toBeVisible();
+    await expect(page.getByText(/see you next time/i)).toBeVisible();
 
     // Verify attendance record now has a checkout timestamp
     const sql = getTestDb();
@@ -191,7 +189,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await page.getByTestId("kiosk-key-submit").click();
 
     await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+    await expect(page.getByText(/couldn[\u2019']t identify your PIN/)).toBeVisible();
   });
 
   test("submit button is disabled when less than 4 digits entered", async ({ page }) => {
@@ -223,7 +221,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await expect(page.getByTestId("kiosk-key-submit")).toBeDisabled();
   });
 
-  test("kiosk rejects PENDING_PAYMENT member PIN", async ({ page }) => {
+  test("kiosk rejects PENDING_PAYMENT member PIN with friendly message", async ({ page }) => {
     // Seed a PENDING_PAYMENT member
     await seedMember({
       workspaceId,
@@ -244,11 +242,12 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await page.getByTestId("kiosk-key-1").click();
     await page.getByTestId("kiosk-key-submit").click();
 
-    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+    await expect(page.getByTestId("kiosk-denied")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Pending Member/)).toBeVisible();
+    await expect(page.getByText(/complete your payment/i)).toBeVisible();
   });
 
-  test("kiosk rejects EXPIRED member PIN", async ({ page }) => {
+  test("kiosk rejects EXPIRED member PIN with friendly message", async ({ page }) => {
     const pastExpiry = new Date();
     pastExpiry.setDate(pastExpiry.getDate() - 10);
     await seedMember({
@@ -271,8 +270,48 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await page.getByTestId("kiosk-key-5").click();
     await page.getByTestId("kiosk-key-submit").click();
 
-    await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Expired or Invalid PIN")).toBeVisible();
+    await expect(page.getByTestId("kiosk-denied")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Expired Kiosk User/)).toBeVisible();
+    await expect(page.getByText(/membership has expired/i)).toBeVisible();
+  });
+
+  test("kiosk shows expiry warning for near-expiry member", async ({ page }) => {
+    const nearExpiry = new Date();
+    nearExpiry.setDate(nearExpiry.getDate() + 2);
+    await seedMember({
+      workspaceId,
+      branchId,
+      name: "Almost Expired User",
+      phone: "9000000055",
+      checkinPin: "2233",
+      status: "ACTIVE",
+      expiryDate: nearExpiry,
+    });
+
+    await loginAndSelectWorkspace(page);
+    await page.goto("/kiosk");
+    await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
+
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-2").click();
+    await page.getByTestId("kiosk-key-3").click();
+    await page.getByTestId("kiosk-key-3").click();
+    await page.getByTestId("kiosk-key-submit").click();
+
+    // Should still check in (warning state, not denied)
+    await expect(page.getByTestId("kiosk-warning")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Welcome, Almost Expired User!")).toBeVisible();
+    await expect(page.getByText(/plan ends in \d+ day/i)).toBeVisible();
+
+    // Verify attendance was still recorded
+    const sql = getTestDb();
+    const rows = await sql`
+      SELECT id FROM attendance
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY checked_in_at DESC LIMIT 1
+    `;
+    expect(rows.length).toBeGreaterThan(0);
+    await sql.end();
   });
 
   test("kiosk auto-returns to idle after error overlay", async ({ page }) => {
@@ -289,7 +328,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
 
     await expect(page.getByTestId("kiosk-error")).toBeVisible({ timeout: 5_000 });
 
-    // Should auto-return to idle after timeout (3s)
+    // Should auto-return to idle after timeout (4s)
     await expect(page.getByTestId("kiosk-pin-display")).toBeVisible({ timeout: 10_000 });
   });
 });

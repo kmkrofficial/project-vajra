@@ -5,6 +5,7 @@ import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getActivePlans } from "@/lib/dal/plans";
 import { getMembers } from "@/lib/dal/members";
 import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import cfg from "@/lib/config";
 import { MembersList } from "./members-list";
 
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
@@ -22,18 +23,18 @@ export default async function MembersPage() {
   const role = workspace.role as WorkspaceRole;
   const isAdmin = ADMIN_ROLES.includes(role);
 
+  // Use the branch from the cookie — null means "All Branches" (admin only)
+  const activeBranchId = ws.branchId;
   const effectiveBranchId = isAdmin
-    ? ws.branchId ?? workspace.branches[0]?.id ?? null
-    : workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
+    ? activeBranchId
+    : activeBranchId ?? workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
   const [plans, allMembers] = await Promise.all([
-    getActivePlans(ws.workspaceId),
-    getMembers(ws.workspaceId),
+    getActivePlans(ws.workspaceId, effectiveBranchId),
+    getMembers(ws.workspaceId, effectiveBranchId),
   ]);
 
-  const members = isAdmin
-    ? allMembers
-    : allMembers.filter((m) => m.branchId === effectiveBranchId);
+  const members = allMembers;
 
   // Map to include fields needed by the privacy modal
   const memberData = members.map((m) => ({
@@ -57,6 +58,9 @@ export default async function MembersPage() {
         gymName={workspace.name}
         upiQrImageUrl={workspace.upiQrImageUrl}
         whatsappTemplate={workspace.whatsappTemplate}
+        expiringSoonDays={cfg.analytics.expiringSoonDays}
+        newMemberDays={cfg.analytics.newMemberDays}
+        defaultPlanDurationDays={cfg.onboarding.defaultPlanDurationDays}
       />
     </div>
   );

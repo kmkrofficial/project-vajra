@@ -69,8 +69,6 @@ test.describe("Owner Intelligence", () => {
     await page.getByLabel("Email").fill(user.email);
     await page.getByLabel("Password").fill(user.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 

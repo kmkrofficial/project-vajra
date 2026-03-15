@@ -1,25 +1,30 @@
-import { eq, and, gte, lte, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, sql, count, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { members, transactions } from "@/lib/db/schema";
+import { members, transactions, plans } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 /**
  * Analytics queries scoped to a workspace.
  */
 
-/** Count active members in a workspace. */
-export async function getActiveMemberCount(workspaceId: string): Promise<number> {
+/** Count active members in a workspace, optionally filtered by branch. */
+export async function getActiveMemberCount(workspaceId: string, branchId?: string | null): Promise<number> {
   const start = performance.now();
   try {
+    const conditions = [
+      eq(members.workspaceId, workspaceId),
+      eq(members.status, "ACTIVE"),
+    ];
+    if (branchId) conditions.push(eq(members.branchId, branchId));
+
     const [row] = await db
       .select({ count: count() })
       .from(members)
-      .where(
-        and(eq(members.workspaceId, workspaceId), eq(members.status, "ACTIVE"))
-      );
+      .where(and(...conditions));
 
     logger.debug(
-      { fn: "getActiveMemberCount", workspaceId, ms: Math.round(performance.now() - start) },
+      { fn: "getActiveMemberCount", workspaceId, branchId, ms: Math.round(performance.now() - start) },
       "DAL query complete"
     );
     return row?.count ?? 0;
@@ -29,13 +34,37 @@ export async function getActiveMemberCount(workspaceId: string): Promise<number>
   }
 }
 
-/** Sum of completed transactions this calendar month. */
-export async function getMonthlyRevenue(workspaceId: string): Promise<number> {
+/** Sum of completed transactions this calendar month, optionally filtered by branch (via member's branch). */
+export async function getMonthlyRevenue(workspaceId: string, branchId?: string | null): Promise<number> {
   const start = performance.now();
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   try {
+    if (branchId) {
+      // Join through members to filter by branch
+      const [row] = await db
+        .select({
+          total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+        })
+        .from(transactions)
+        .innerJoin(members, eq(transactions.memberId, members.id))
+        .where(
+          and(
+            eq(transactions.workspaceId, workspaceId),
+            eq(transactions.status, "COMPLETED"),
+            gte(transactions.createdAt, firstOfMonth),
+            eq(members.branchId, branchId)
+          )
+        );
+
+      logger.debug(
+        { fn: "getMonthlyRevenue", workspaceId, branchId, ms: Math.round(performance.now() - start) },
+        "DAL query complete"
+      );
+      return Number(row?.total ?? 0);
+    }
+
     const [row] = await db
       .select({
         total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
@@ -60,10 +89,11 @@ export async function getMonthlyRevenue(workspaceId: string): Promise<number> {
   }
 }
 
-/** Count members expiring within the next N days. */
+/** Count members expiring within the next N days, optionally filtered by branch. */
 export async function getExpiringMemberCount(
   workspaceId: string,
-  days: number = 7
+  days: number = cfg.analytics.expiringSoonDays,
+  branchId?: string | null
 ): Promise<number> {
   const start = performance.now();
   const now = new Date();
@@ -71,20 +101,21 @@ export async function getExpiringMemberCount(
   future.setDate(now.getDate() + days);
 
   try {
+    const conditions = [
+      eq(members.workspaceId, workspaceId),
+      eq(members.status, "ACTIVE"),
+      gte(members.expiryDate, now),
+      lte(members.expiryDate, future),
+    ];
+    if (branchId) conditions.push(eq(members.branchId, branchId));
+
     const [row] = await db
       .select({ count: count() })
       .from(members)
-      .where(
-        and(
-          eq(members.workspaceId, workspaceId),
-          eq(members.status, "ACTIVE"),
-          gte(members.expiryDate, now),
-          lte(members.expiryDate, future)
-        )
-      );
+      .where(and(...conditions));
 
     logger.debug(
-      { fn: "getExpiringMemberCount", workspaceId, days, ms: Math.round(performance.now() - start) },
+      { fn: "getExpiringMemberCount", workspaceId, days, branchId, ms: Math.round(performance.now() - start) },
       "DAL query complete"
     );
     return row?.count ?? 0;
@@ -97,7 +128,7 @@ export async function getExpiringMemberCount(
 /** Revenue per month for the last 6 months. Returns [{ month: "Jan", revenue: 5000 }, ...]. */
 export async function getRevenueByMonth(
   workspaceId: string,
-  months: number = 6
+  months: number = cfg.analytics.revenueChartMonths
 ): Promise<{ month: string; revenue: number }[]> {
   const start = performance.now();
   const cutoff = new Date();
@@ -144,12 +175,12 @@ export async function getRevenueByMonth(
   }
 }
 
-/** Count members who churned (expired in the last 30 days without renewal). */
+/** Count members who churned (expired in the configurable churn window without renewal). */
 export async function getChurnCount(workspaceId: string): Promise<number> {
   const start = performance.now();
   const now = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(now.getDate() - 30);
+  const churnCutoff = new Date();
+  churnCutoff.setDate(now.getDate() - cfg.analytics.churnWindowDays);
 
   try {
     const [row] = await db
@@ -159,7 +190,7 @@ export async function getChurnCount(workspaceId: string): Promise<number> {
         and(
           eq(members.workspaceId, workspaceId),
           eq(members.status, "EXPIRED"),
-          gte(members.expiryDate, thirtyDaysAgo),
+          gte(members.expiryDate, churnCutoff),
           lte(members.expiryDate, now)
         )
       );
@@ -229,10 +260,10 @@ export async function getWoWGrowth(workspaceId: string): Promise<number | null> 
   const now = new Date();
 
   const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(now.getDate() - 7);
+  sevenDaysAgo.setDate(now.getDate() - cfg.analytics.wowGrowthDays);
 
   const fourteenDaysAgo = new Date();
-  fourteenDaysAgo.setDate(now.getDate() - 14);
+  fourteenDaysAgo.setDate(now.getDate() - cfg.analytics.wowGrowthDays * 2);
 
   try {
     const [current, previous] = await Promise.all([
@@ -257,13 +288,13 @@ export async function getWoWGrowth(workspaceId: string): Promise<number | null> 
  * Get a full analytics snapshot for the workspace.
  * Runs queries in parallel for fast loading.
  */
-export async function getWorkspaceAnalytics(workspaceId: string) {
+export async function getWorkspaceAnalytics(workspaceId: string, branchId?: string | null) {
   const [activeMembers, monthlyRevenue, expiringIn7Days, revenueByMonth, churnCount, momGrowth, wowGrowth] =
     await Promise.all([
-      getActiveMemberCount(workspaceId),
-      getMonthlyRevenue(workspaceId),
-      getExpiringMemberCount(workspaceId, 7),
-      getRevenueByMonth(workspaceId, 6),
+      getActiveMemberCount(workspaceId, branchId),
+      getMonthlyRevenue(workspaceId, branchId),
+      getExpiringMemberCount(workspaceId, cfg.analytics.expiringSoonDays, branchId),
+      getRevenueByMonth(workspaceId, cfg.analytics.revenueChartMonths),
       getChurnCount(workspaceId),
       getMoMGrowth(workspaceId),
       getWoWGrowth(workspaceId),

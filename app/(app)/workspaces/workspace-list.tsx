@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useWorkspace, type WorkspaceRole } from "@/components/providers/workspace-provider";
+import { switchWorkspaceAction } from "@/lib/actions/workspace";
 import {
   Card,
   CardHeader,
@@ -24,10 +27,22 @@ export function WorkspaceList({
 }) {
   const router = useRouter();
   const { setWorkspace } = useWorkspace();
+  const [isPending, startTransition] = useTransition();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleSelect(ws: WorkspaceItem) {
-    setWorkspace(ws.id, null, ws.role as WorkspaceRole);
-    router.push("/app/dashboard");
+    setSelectedId(ws.id);
+    startTransition(async () => {
+      const result = await switchWorkspaceAction(ws.id);
+      if (result.success) {
+        setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
+        router.push("/app/dashboard");
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to select workspace.");
+        setSelectedId(null);
+      }
+    });
   }
 
   return (
@@ -40,7 +55,12 @@ export function WorkspaceList({
           data-testid={`workspace-card-${ws.id}`}
         >
           <CardHeader>
-            <CardTitle className="text-lg">{ws.name}</CardTitle>
+            <CardTitle className="text-lg">
+              {ws.name}
+              {isPending && selectedId === ws.id && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">Loading…</span>
+              )}
+            </CardTitle>
             <CardDescription>
               {ws.primaryBranchName} &middot;{" "}
               <span className="capitalize">{ws.role.toLowerCase().replace("_", " ")}</span>

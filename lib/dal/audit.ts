@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auditLogs, user } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 import { eq, desc, and, like } from "drizzle-orm";
+import cfg from "@/lib/config";
 
 /**
  * Insert an audit log entry. This function is fire-and-forget:
@@ -50,7 +51,7 @@ export interface AuditLogRow {
  */
 export async function getAuditLogs(
   workspaceId: string,
-  limit: number = 100,
+  limit: number = cfg.limits.auditLogPageSize,
   actionFilter?: string
 ): Promise<AuditLogRow[]> {
   const start = performance.now();

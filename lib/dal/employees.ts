@@ -1,6 +1,6 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { employees, branches, employeeInvites, workspaceUsers, user } from "@/lib/db/schema";
+import { employees, branches, employeeInvites, employeeBranches, workspaceUsers, user } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
 /** Get all employees for a workspace (excludes 'left' by default). */
@@ -25,9 +25,34 @@ export async function getEmployees(workspaceId: string, includeLeft = false) {
       .where(eq(employees.workspaceId, workspaceId))
       .orderBy(employees.createdAt);
 
-    const result = includeLeft
+    const filtered = includeLeft
       ? rows
       : rows.filter((r) => r.status !== "left");
+
+    // Fetch assigned branches for all employees in one query
+    const empIds = filtered.map((e) => e.id);
+    const allAssignments = empIds.length > 0
+      ? await db
+          .select({
+            employeeId: employeeBranches.employeeId,
+            branchId: employeeBranches.branchId,
+          })
+          .from(employeeBranches)
+          .where(inArray(employeeBranches.employeeId, empIds))
+      : [];
+
+    // Build a map: employeeId → branchId[]
+    const branchMap = new Map<string, string[]>();
+    for (const a of allAssignments) {
+      const arr = branchMap.get(a.employeeId) ?? [];
+      arr.push(a.branchId);
+      branchMap.set(a.employeeId, arr);
+    }
+
+    const result = filtered.map((emp) => ({
+      ...emp,
+      assignedBranchIds: branchMap.get(emp.id) ?? [],
+    }));
 
     logger.debug(
       { fn: "getEmployees", workspaceId, count: result.length, ms: Math.round(performance.now() - start) },
@@ -509,6 +534,104 @@ export async function acceptEmployeeInvite(
     return { accepted: true };
   } catch (err) {
     logger.error({ err, fn: "acceptEmployeeInvite", employeeId }, "DAL accept failed");
+    throw err;
+  }
+}
+
+// ─── Employee ↔ Branch (many-to-many) ───────────────────────────────────────
+
+/** Get all branch IDs an employee is assigned to (from employee_branches). */
+export async function getEmployeeBranchIds(employeeId: string): Promise<string[]> {
+  const start = performance.now();
+  try {
+    const rows = await db
+      .select({ branchId: employeeBranches.branchId })
+      .from(employeeBranches)
+      .where(eq(employeeBranches.employeeId, employeeId));
+
+    logger.debug(
+      { fn: "getEmployeeBranchIds", employeeId, count: rows.length, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return rows.map((r) => r.branchId);
+  } catch (err) {
+    logger.error({ err, fn: "getEmployeeBranchIds", employeeId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/** Get all branches (with name) an employee has access to. Falls back to primary branchId. */
+export async function getEmployeeBranches(
+  employeeId: string,
+  workspaceId: string
+): Promise<{ id: string; name: string }[]> {
+  const start = performance.now();
+  try {
+    const rows = await db
+      .select({ id: branches.id, name: branches.name })
+      .from(employeeBranches)
+      .innerJoin(branches, eq(employeeBranches.branchId, branches.id))
+      .where(eq(employeeBranches.employeeId, employeeId));
+
+    if (rows.length > 0) {
+      logger.debug(
+        { fn: "getEmployeeBranches", employeeId, count: rows.length, ms: Math.round(performance.now() - start) },
+        "DAL query complete"
+      );
+      return rows;
+    }
+
+    // Fallback: use the primary branchId from employees table
+    const [emp] = await db
+      .select({ branchId: employees.branchId })
+      .from(employees)
+      .where(eq(employees.id, employeeId))
+      .limit(1);
+
+    if (!emp) return [];
+
+    const [branch] = await db
+      .select({ id: branches.id, name: branches.name })
+      .from(branches)
+      .where(and(eq(branches.id, emp.branchId), eq(branches.workspaceId, workspaceId)))
+      .limit(1);
+
+    logger.debug(
+      { fn: "getEmployeeBranches", employeeId, fallback: true, ms: Math.round(performance.now() - start) },
+      "DAL query complete"
+    );
+    return branch ? [branch] : [];
+  } catch (err) {
+    logger.error({ err, fn: "getEmployeeBranches", employeeId }, "DAL query failed");
+    throw err;
+  }
+}
+
+/** Replace all branch assignments for an employee. */
+export async function setEmployeeBranches(
+  employeeId: string,
+  branchIds: string[]
+): Promise<void> {
+  const start = performance.now();
+  try {
+    // Delete existing
+    await db
+      .delete(employeeBranches)
+      .where(eq(employeeBranches.employeeId, employeeId));
+
+    // Insert new
+    if (branchIds.length > 0) {
+      await db.insert(employeeBranches).values(
+        branchIds.map((branchId) => ({ employeeId, branchId }))
+      );
+    }
+
+    logger.debug(
+      { fn: "setEmployeeBranches", employeeId, count: branchIds.length, ms: Math.round(performance.now() - start) },
+      "DAL set complete"
+    );
+  } catch (err) {
+    logger.error({ err, fn: "setEmployeeBranches", employeeId }, "DAL set failed");
     throw err;
   }
 }

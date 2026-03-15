@@ -43,17 +43,17 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 /** Roles that can see revenue / full member table */
 const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
 
-/** Members expiring within the next 7 days */
-function getExpiringSoon(members: Member[]) {
+/** Members expiring within the configurable "expiring soon" window */
+function getExpiringSoon(members: Member[], expiringSoonDays: number) {
   const now = new Date();
-  const weekFromNow = new Date();
-  weekFromNow.setDate(now.getDate() + 7);
+  const future = new Date();
+  future.setDate(now.getDate() + expiringSoonDays);
 
   return members.filter(
     (m) =>
       m.status === "ACTIVE" &&
       m.expiryDate &&
-      new Date(m.expiryDate) <= weekFromNow &&
+      new Date(m.expiryDate) <= future &&
       new Date(m.expiryDate) >= now
   );
 }
@@ -67,6 +67,7 @@ export function MembersView({
   role,
   upiQrImageUrl,
   whatsappTemplate,
+  expiringSoonDays = 7,
 }: {
   members: Member[];
   plans: Plan[];
@@ -76,9 +77,10 @@ export function MembersView({
   role: WorkspaceRole;
   upiQrImageUrl?: string | null;
   whatsappTemplate?: string | null;
+  expiringSoonDays?: number;
 }) {
   const isAdmin = ADMIN_ROLES.includes(role);
-  const expiringSoon = getExpiringSoon(members);
+  const expiringSoon = getExpiringSoon(members, expiringSoonDays);
 
   // Cheapest active plan for renewal link
   const cheapestPlan = plans.length > 0
@@ -94,7 +96,7 @@ export function MembersView({
         </h2>
         {expiringSoon.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No members expiring in the next 7 days.
+            No members expiring in the next {expiringSoonDays} days.
           </p>
         ) : (
           <div className="rounded-lg border border-border">

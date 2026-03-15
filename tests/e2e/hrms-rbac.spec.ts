@@ -68,8 +68,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
@@ -108,8 +106,7 @@ test.describe("HRMS & RBAC", () => {
     await page.getByText("Receptionist", { exact: true }).click();
 
     // Select branch: Downtown Branch
-    await page.getByTestId("emp-branch-select").click();
-    await page.getByText("Downtown Branch").click();
+    await page.getByTestId("emp-branch-select").locator("label", { hasText: "Downtown Branch" }).click();
 
     // Submit
     await page.getByTestId("emp-submit").click();
@@ -160,8 +157,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/branches");
@@ -173,8 +168,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/settings");
@@ -186,8 +179,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/analytics");
@@ -199,8 +190,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/audit-logs");
@@ -214,8 +203,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(TRAINER.email);
     await page.getByLabel("Password").fill(TRAINER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/branches");
@@ -227,8 +214,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(TRAINER.email);
     await page.getByLabel("Password").fill(TRAINER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/settings");
@@ -240,8 +225,6 @@ test.describe("HRMS & RBAC", () => {
     await page.getByLabel("Email").fill(TRAINER.email);
     await page.getByLabel("Password").fill(TRAINER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/analytics");

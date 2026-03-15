@@ -7,6 +7,7 @@ import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
 import { insertPlan, togglePlanActive, updatePlan, getPlans } from "@/lib/dal/plans";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -26,6 +27,7 @@ export async function createPlan(data: {
   description?: string;
   price: number;
   durationDays: number;
+  branchId?: string;
 }): Promise<ActionResult> {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
@@ -44,8 +46,8 @@ export async function createPlan(data: {
 
   try {
     const description = data.description?.trim() || null;
-    if (description && description.length > 500) {
-      return { success: false, error: "Description must be 500 characters or fewer." };
+    if (description && description.length > cfg.limits.planDescriptionMaxLength) {
+      return { success: false, error: `Description must be ${cfg.limits.planDescriptionMaxLength} characters or fewer.` };
     }
 
     const plan = await insertPlan({
@@ -54,6 +56,7 @@ export async function createPlan(data: {
       description,
       price: data.price,
       durationDays: data.durationDays,
+      branchId: data.branchId ?? null,
     });
 
     await insertAuditLog({
@@ -83,7 +86,7 @@ export async function createPlan(data: {
  */
 export async function updatePlanAction(
   planId: string,
-  data: { name?: string; description?: string | null; price?: number; durationDays?: number }
+  data: { name?: string; description?: string | null; price?: number; durationDays?: number; branchId?: string | null }
 ): Promise<ActionResult> {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
@@ -108,8 +111,8 @@ export async function updatePlanAction(
   if (data.durationDays !== undefined && data.durationDays < 1) {
     return { success: false, error: "Duration must be at least 1 day." };
   }
-  if (data.description !== undefined && data.description !== null && data.description.length > 500) {
-    return { success: false, error: "Description must be 500 characters or fewer." };
+  if (data.description !== undefined && data.description !== null && data.description.length > cfg.limits.planDescriptionMaxLength) {
+    return { success: false, error: `Description must be ${cfg.limits.planDescriptionMaxLength} characters or fewer.` };
   }
 
   try {
@@ -118,6 +121,7 @@ export async function updatePlanAction(
       description: data.description !== undefined ? (data.description?.trim() || null) : undefined,
       price: data.price,
       durationDays: data.durationDays,
+      branchId: data.branchId,
     });
 
     if (!updated) {

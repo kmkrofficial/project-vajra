@@ -5,29 +5,40 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { processKioskCheckin } from "@/lib/actions/kiosk";
 
-type KioskState = "idle" | "loading" | "success" | "error";
+/**
+ * idle     → numpad visible
+ * loading  → processing PIN
+ * success  → green — normal check-in / blue — checkout
+ * warning  → amber — checked in but plan expiring soon
+ * denied   → orange — member recognized but can't enter (expired / pending / etc.)
+ * error    → red — PIN not found or system error
+ */
+type KioskState = "idle" | "loading" | "success" | "warning" | "denied" | "error";
 
 interface KioskNumpadProps {
   branchId: string;
   checkoutEnabled: boolean;
+  overlayResetMs: number;
 }
 
-export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadProps) {
+export default function KioskNumpad({ branchId, checkoutEnabled, overlayResetMs }: KioskNumpadProps) {
   const [pin, setPin] = useState("");
   const [state, setState] = useState<KioskState>("idle");
   const [memberName, setMemberName] = useState("");
   const [kioskAction, setKioskAction] = useState<"checkin" | "checkout">("checkin");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [displayMessage, setDisplayMessage] = useState("");
+  const [displaySub, setDisplaySub] = useState("");
 
   const resetAfterDelay = useCallback(() => {
     setTimeout(() => {
       setPin("");
       setMemberName("");
       setKioskAction("checkin");
-      setErrorMessage("");
+      setDisplayMessage("");
+      setDisplaySub("");
       setState("idle");
-    }, 3000);
-  }, []);
+    }, overlayResetMs);
+  }, [overlayResetMs]);
 
   const handleSubmit = useCallback(async () => {
     if (pin.length !== 4 || !branchId) return;
@@ -39,14 +50,37 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
     if (result.success) {
       setMemberName(result.memberName);
       setKioskAction(result.action);
-      setState("success");
+
+      if (result.action === "checkout") {
+        setDisplayMessage(`Goodbye, ${result.memberName}!`);
+        setDisplaySub("Checked out — see you next time!");
+        setState("success");
+      } else if (result.expiryWarning) {
+        // Checked in, but plan expiring soon
+        setDisplayMessage(`Welcome, ${result.memberName}!`);
+        setDisplaySub(result.expiryWarning);
+        setState("warning");
+      } else {
+        setDisplayMessage(`Welcome, ${result.memberName}!`);
+        setDisplaySub("Have a great workout!");
+        setState("success");
+      }
     } else {
-      setErrorMessage(result.error);
-      setState("error");
+      // Member recognized but denied? (has memberName)
+      if (result.memberName) {
+        setMemberName(result.memberName);
+        setDisplayMessage(result.error);
+        setDisplaySub("");
+        setState("denied");
+      } else {
+        setDisplayMessage(result.error);
+        setDisplaySub("");
+        setState("error");
+      }
     }
 
     resetAfterDelay();
-  }, [pin, branchId, resetAfterDelay]);
+  }, [pin, branchId, checkoutEnabled, resetAfterDelay]);
 
   const handleKey = useCallback(
     (key: string) => {
@@ -90,9 +124,61 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
       ? "bg-blue-500"
       : state === "success"
         ? "bg-green-500"
-        : state === "error"
-          ? "bg-red-500"
-          : "bg-background";
+        : state === "warning"
+          ? "bg-amber-500"
+          : state === "denied"
+            ? "bg-orange-500"
+            : state === "error"
+              ? "bg-red-500"
+              : "bg-background";
+
+  // Icon for each overlay state
+  const overlayIcon =
+    state === "success" || state === "warning" ? (
+      // Checkmark
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    ) : state === "denied" ? (
+      // Hand / stop icon (circle with line)
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+      </svg>
+    ) : (
+      // X mark
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
 
   return (
     <div
@@ -109,47 +195,45 @@ export default function KioskNumpad({ branchId, checkoutEnabled }: KioskNumpadPr
         ← Dashboard
       </Link>
 
-      {/* Success overlay */}
+      {/* ── Success overlay (check-in / check-out) ─────────────────── */}
       {state === "success" && (
         <div className="text-center text-white px-4" data-testid="kiosk-success">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
-          >
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-          <p className="text-2xl font-bold sm:text-5xl">
-            {kioskAction === "checkout" ? `Goodbye, ${memberName}!` : `Welcome, ${memberName}!`}
-          </p>
+          {overlayIcon}
+          <p className="text-2xl font-bold sm:text-5xl">{displayMessage}</p>
           <p className="mt-1 text-base font-medium opacity-80 sm:mt-2 sm:text-2xl">
-            {kioskAction === "checkout" ? "Checked out" : "Checked in"}
+            {displaySub}
           </p>
         </div>
       )}
 
-      {/* Error overlay */}
+      {/* ── Warning overlay (checked in, but plan expiring soon) ──── */}
+      {state === "warning" && (
+        <div className="text-center text-white px-4" data-testid="kiosk-warning">
+          {overlayIcon}
+          <p className="text-2xl font-bold sm:text-5xl">{displayMessage}</p>
+          <p className="mt-2 text-base font-medium opacity-90 sm:mt-3 sm:text-2xl">
+            {displaySub}
+          </p>
+        </div>
+      )}
+
+      {/* ── Denied overlay (member found, but status prevents entry) ─ */}
+      {state === "denied" && (
+        <div className="text-center text-white px-6" data-testid="kiosk-denied">
+          {overlayIcon}
+          <p className="text-xl font-bold leading-snug sm:text-4xl sm:leading-snug max-w-lg mx-auto">
+            {displayMessage}
+          </p>
+        </div>
+      )}
+
+      {/* ── Error overlay (PIN not found / system error) ───────────── */}
       {state === "error" && (
-        <div className="text-center text-white px-4" data-testid="kiosk-error">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mx-auto mb-4 size-16 sm:mb-6 sm:size-28"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-          <p className="text-2xl font-bold sm:text-5xl">{errorMessage}</p>
+        <div className="text-center text-white px-6" data-testid="kiosk-error">
+          {overlayIcon}
+          <p className="text-lg font-bold leading-snug sm:text-3xl sm:leading-snug max-w-lg mx-auto">
+            {displayMessage}
+          </p>
         </div>
       )}
 

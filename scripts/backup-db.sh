@@ -26,7 +26,14 @@ set -euo pipefail
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/vajra}"
-BACKUP_RETAIN="${BACKUP_RETAIN:-14}"
+
+# Read backup_retention_days from config.yml (fallback to env, then default 14)
+CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.yml"
+if [ -f "$CONFIG_FILE" ]; then
+  YML_RETAIN=$(grep -oP 'backup_retention_days:\s*\K\d+' "$CONFIG_FILE" 2>/dev/null || true)
+fi
+BACKUP_RETAIN="${BACKUP_RETAIN:-${YML_RETAIN:-14}}"
+
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_FILE="${BACKUP_DIR}/vajra_${TIMESTAMP}.sql.gz"
 

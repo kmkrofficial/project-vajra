@@ -3,15 +3,11 @@
  * Usage:  npx tsx scripts/kill-port.ts          (kill only)
  *         npx tsx scripts/kill-port.ts --start   (kill then start dev server)
  */
-import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { resolve } from "node:path";
+import { loadConfig } from "../lib/config";
 
-// ── Read port from config.yml ───────────────────────────────────────────────
-const configPath = resolve(__dirname, "..", "config.yml");
-const raw = readFileSync(configPath, "utf-8");
-const portMatch = raw.match(/port:\s*(\d+)/);
-const PORT = portMatch ? Number(portMatch[1]) : 3000;
+// ── Read port from config.yml via centralized loader ────────────────────────
+const PORT = loadConfig().server.port;
 
 console.log(`🔍 Checking port ${PORT}…`);
 

@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { createPlan } from "@/lib/actions/plans";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +15,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-export function CreatePlanDialog() {
+interface Branch {
+  id: string;
+  name: string;
+}
+
+export function CreatePlanDialog({ branches }: { branches: Branch[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string>("__all__");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,11 +49,13 @@ export function CreatePlanDialog() {
       return;
     }
 
-    const result = await createPlan({ name, description: description || undefined, price, durationDays });
+    const branchId = selectedBranch === "__all__" ? undefined : selectedBranch;
+    const result = await createPlan({ name, description: description || undefined, price, durationDays, branchId });
 
     if (result.success) {
       toast.success("Plan created successfully.");
       setOpen(false);
+      setSelectedBranch("__all__");
     } else {
       toast.error(result.error ?? "Failed to create plan.");
     }
@@ -62,29 +78,44 @@ export function CreatePlanDialog() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="plan-name">Plan Name</Label>
+          <FormField
+            label="Plan Name"
+            htmlFor="plan-name"
+            required
+            tooltip="Displayed to members during enrollment"
+            constraint="Min 2 characters"
+          >
             <Input
               id="plan-name"
               name="name"
               placeholder="e.g. 1 Month Standard"
               required
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="plan-description">Description (optional)</Label>
-            <textarea
+          </FormField>
+
+          <FormField
+            label="Description"
+            htmlFor="plan-description"
+            optional
+            tooltip="Optional details shown on the plan card. Supports Markdown."
+            constraint="Max 500 characters"
+          >
+            <Textarea
               id="plan-description"
               name="description"
-              placeholder="Describe what's included in this plan… Markdown supported."
+              placeholder="Describe what's included in this plan…"
               maxLength={500}
               rows={3}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-muted-foreground">Max 500 characters. Markdown supported.</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="plan-price">Price (₹)</Label>
+          </FormField>
+
+          <FormField
+            label="Price (₹)"
+            htmlFor="plan-price"
+            required
+            tooltip="Plan cost in Indian Rupees"
+            constraint="Min ₹1"
+          >
             <Input
               id="plan-price"
               name="price"
@@ -93,9 +124,15 @@ export function CreatePlanDialog() {
               placeholder="1500"
               required
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="plan-duration">Duration (days)</Label>
+          </FormField>
+
+          <FormField
+            label="Duration (days)"
+            htmlFor="plan-duration"
+            required
+            tooltip="How long the membership lasts after activation"
+            constraint="Min 1 day"
+          >
             <Input
               id="plan-duration"
               name="durationDays"
@@ -104,7 +141,30 @@ export function CreatePlanDialog() {
               placeholder="30"
               required
             />
-          </div>
+          </FormField>
+
+          {branches.length > 1 && (
+            <FormField
+              label="Branch"
+              tooltip="Assign to a specific branch or make available everywhere"
+              description="Choose a branch, or &quot;All Branches&quot; to make this plan available everywhere."
+            >
+              <Select value={selectedBranch} onValueChange={(v) => setSelectedBranch(v ?? "__all__")}>
+                <SelectTrigger data-testid="plan-branch-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All Branches</SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
+
           <Button
             type="submit"
             className="w-full"

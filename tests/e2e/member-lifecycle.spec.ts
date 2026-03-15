@@ -56,8 +56,6 @@ test.describe("Member Lifecycle & Privacy", () => {
     await page.getByLabel("Email").fill(OWNER.email);
     await page.getByLabel("Password").fill(OWNER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 

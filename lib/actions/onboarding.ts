@@ -11,6 +11,7 @@ import {
   auditLogs,
 } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
+import cfg from "@/lib/config";
 
 type ActionResult = {
   success: boolean;
@@ -65,12 +66,12 @@ export async function completeOnboarding(data: {
         assignedBranchId: branch.id,
       });
 
-      // 4. Create first pricing plan (default 30 days)
+      // 4. Create first pricing plan (default duration from config.yml)
       await tx.insert(plans).values({
         workspaceId: workspace.id,
         name: data.planName,
         price: data.planPrice,
-        durationDays: 30,
+        durationDays: cfg.onboarding.defaultPlanDurationDays,
       });
 
       // 5. Audit log (inside transaction for atomicity)

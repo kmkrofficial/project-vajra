@@ -5,6 +5,7 @@ import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getMembers } from "@/lib/dal/members";
 import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import cfg from "@/lib/config";
 import {
   Card,
   CardContent,
@@ -44,22 +45,22 @@ export default async function DashboardPage() {
   const role = workspace.role as WorkspaceRole;
   const isAdmin = ADMIN_ROLES.includes(role);
 
-  // Staff (RECEPTIONIST / TRAINER) are locked to their assigned branch
+  // Use the branch from the cookie — null means "All Branches" (admin only)
+  const activeBranchId = ws.branchId;
+
+  // Staff must always have a branch; fall back to assigned or first
   const effectiveBranchId = isAdmin
-    ? ws.branchId ?? workspace.branches[0]?.id ?? null
-    : workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
+    ? activeBranchId
+    : activeBranchId ?? workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
   const [allMembers, popularTimes, todayCheckins, monthlyRevenue] = await Promise.all([
-    getMembers(ws.workspaceId),
-    getPopularTimes(ws.workspaceId),
-    getTodayCheckinCount(ws.workspaceId),
-    isAdmin ? getMonthlyRevenue(ws.workspaceId) : Promise.resolve(0),
+    getMembers(ws.workspaceId, effectiveBranchId),
+    getPopularTimes(ws.workspaceId, effectiveBranchId),
+    getTodayCheckinCount(ws.workspaceId, effectiveBranchId),
+    isAdmin ? getMonthlyRevenue(ws.workspaceId, effectiveBranchId) : Promise.resolve(0),
   ]);
 
-  // For non-admin roles, filter members to only their branch
-  const members = isAdmin
-    ? allMembers
-    : allMembers.filter((m) => m.branchId === effectiveBranchId);
+  const members = allMembers;
 
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
   const trialCount = members.filter((m) => m.status === "TRIAL").length;
@@ -67,10 +68,10 @@ export default async function DashboardPage() {
   const pendingCount = members.filter((m) => m.status === "PENDING_PAYMENT").length;
   const churnedCount = members.filter((m) => m.status === "CHURNED").length;
 
-  // Members expiring within 7 days
+  // Members expiring within configured window
   const now = new Date();
   const weekFromNow = new Date();
-  weekFromNow.setDate(now.getDate() + 7);
+  weekFromNow.setDate(now.getDate() + cfg.analytics.expiringSoonDays);
   const expiringCount = members.filter(
     (m) =>
       m.status === "ACTIVE" &&
@@ -140,7 +141,7 @@ export default async function DashboardPage() {
             <CardHeader className="pb-1">
               <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <AlertTriangle className="size-3.5" />
-                Expiring in 7d
+                Expiring in {cfg.analytics.expiringSoonDays}d
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -231,7 +232,7 @@ export default async function DashboardPage() {
             <CardHeader className="pb-1">
               <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <AlertTriangle className="size-3.5" />
-                Expiring in 7d
+                Expiring in {cfg.analytics.expiringSoonDays}d
               </CardTitle>
             </CardHeader>
             <CardContent>

@@ -168,22 +168,23 @@ export async function getAverageHourlyActivity(
 }
 
 /**
- * Get today's total check-in count for a workspace.
+ * Get today's total check-in count for a workspace, optionally filtered by branch.
  */
-export async function getTodayCheckinCount(workspaceId: string): Promise<number> {
+export async function getTodayCheckinCount(workspaceId: string, branchId?: string | null): Promise<number> {
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const conditions = [
+    eq(attendance.workspaceId, workspaceId),
+    gte(attendance.checkedInAt, dayStart),
+    lte(attendance.checkedInAt, now),
+  ];
+  if (branchId) conditions.push(eq(attendance.branchId, branchId));
 
   const [row] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(attendance)
-    .where(
-      and(
-        eq(attendance.workspaceId, workspaceId),
-        gte(attendance.checkedInAt, dayStart),
-        lte(attendance.checkedInAt, now)
-      )
-    );
+    .where(and(...conditions));
 
   return row?.count ?? 0;
 }
@@ -194,7 +195,8 @@ export async function getTodayCheckinCount(workspaceId: string): Promise<number>
  * Only hours 5–22 are practically useful for gyms.
  */
 export async function getPopularTimes(
-  workspaceId: string
+  workspaceId: string,
+  branchId?: string | null
 ): Promise<{ dow: number; hours: { hour: number; avg: number }[] }[]> {
   const start = performance.now();
   const offsetMinutes = -(new Date().getTimezoneOffset());
@@ -208,6 +210,7 @@ export async function getPopularTimes(
           (checked_in_at + make_interval(mins => ${offsetMinutes}))::date AS d
         FROM attendance
         WHERE workspace_id = ${workspaceId}
+        ${branchId ? sql`AND branch_id = ${branchId}` : sql``}
       ),
       hourly_counts AS (
         SELECT dow, h, d, COUNT(*)::int AS cnt

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WorkspaceProvider } from "@/components/providers/workspace-provider";
+import cfg from "@/lib/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,7 +43,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ThemeProvider>
-          <WorkspaceProvider>
+          <WorkspaceProvider cookieMaxAge={cfg.auth.workspaceCookieMaxAge}>
             {children}
           </WorkspaceProvider>
           <Toaster richColors position="bottom-right" />

@@ -42,8 +42,8 @@ export function WorkspaceSwitcher({
       const result = await switchWorkspaceAction(ws.id);
 
       if (result.success) {
-        // Update client-side context to match
-        setWorkspace(ws.id, null, ws.role as WorkspaceRole);
+        // Update client-side context with the server-resolved branchId
+        setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
         toast.success(`Switched to ${ws.name}`);
         router.push("/app/dashboard");
         router.refresh();

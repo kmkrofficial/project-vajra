@@ -18,8 +18,6 @@
  */
 
 import "dotenv/config";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, and, lt, sql } from "drizzle-orm";
@@ -34,25 +32,9 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 
-// ─── Read config.yml ────────────────────────────────────────────────────────
+// ─── Read config.yml via centralised loader ────────────────────────────────
 
-function readConfig() {
-  try {
-    const configPath = resolve(__dirname, "..", "config.yml");
-    const raw = readFileSync(configPath, "utf-8");
-
-    const trialMatch = raw.match(/trial_period_days:\s*(\d+)/);
-    const churnMatch = raw.match(/enquiry_churn_days:\s*(\d+)/);
-
-    return {
-      trialPeriodDays: trialMatch ? Number(trialMatch[1]) : 2,
-      enquiryChurnDays: churnMatch ? Number(churnMatch[1]) : 30,
-    };
-  } catch {
-    console.warn("⚠ Could not read config.yml, using defaults.");
-    return { trialPeriodDays: 2, enquiryChurnDays: 30 };
-  }
-}
+import { loadConfig } from "../lib/config";
 
 // ─── Minimal schema (just what the script needs) ────────────────────────────
 
@@ -89,7 +71,8 @@ async function main() {
     process.exit(1);
   }
 
-  const config = readConfig();
+  const cfg = loadConfig();
+  const config = cfg.schedulers;
   console.log(
     `  Config → trial_period_days: ${config.trialPeriodDays}, enquiry_churn_days: ${config.enquiryChurnDays}`
   );

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
+import { verifyWorkspaceMembership, getBranches } from "@/lib/dal/workspace";
 import { getPlans } from "@/lib/dal/plans";
 import { PlansTable } from "./plans-table";
 import { CreatePlanDialog } from "./create-plan-dialog";
@@ -21,7 +21,10 @@ export default async function PlansPage() {
     redirect("/app/dashboard");
   }
 
-  const plans = await getPlans(ws.workspaceId);
+  const [plans, branchList] = await Promise.all([
+    getPlans(ws.workspaceId),
+    getBranches(ws.workspaceId),
+  ]);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -35,10 +38,10 @@ export default async function PlansPage() {
               Manage pricing plans for your gym
             </p>
           </div>
-          <CreatePlanDialog />
+          <CreatePlanDialog branches={branchList} />
         </div>
 
-        <PlansTable plans={plans} />
+        <PlansTable plans={plans} branches={branchList} />
       </div>
     </div>
   );

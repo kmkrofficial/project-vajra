@@ -3,6 +3,7 @@ import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getWorkspaceAnalytics } from "@/lib/dal/analytics";
+import cfg from "@/lib/config";
 import {
   Card,
   CardContent,
@@ -51,7 +52,9 @@ export default async function AnalyticsPage() {
     redirect("/app/dashboard");
   }
 
-  const analytics = await getWorkspaceAnalytics(ws.workspaceId);
+  // Use branch from cookie — null means all branches
+  const activeBranchId = ws.branchId;
+  const analytics = await getWorkspaceAnalytics(ws.workspaceId, activeBranchId);
 
   return (
     <div className="space-y-6 p-4 md:p-6" data-testid="analytics-page">
@@ -120,7 +123,7 @@ export default async function AnalyticsPage() {
               <GrowthBadge value={analytics.wowGrowth} />
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {analytics.expiringIn7Days} expiring in 7d
+              {analytics.expiringIn7Days} expiring in {cfg.analytics.expiringSoonDays}d
             </p>
           </CardContent>
         </Card>
@@ -131,7 +134,7 @@ export default async function AnalyticsPage() {
         {/* Revenue Bar Chart — spans 2 cols */}
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Revenue (Last 6 Months)</CardTitle>
+            <CardTitle className="text-base">Revenue (Last {cfg.analytics.revenueChartMonths} Months)</CardTitle>
           </CardHeader>
           <CardContent>
             <RevenueChart data={analytics.revenueByMonth} />

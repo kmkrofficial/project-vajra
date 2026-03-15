@@ -3,6 +3,7 @@ import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
 import { getWorkspaceConfig } from "@/lib/dal/config";
+import cfg from "@/lib/config";
 import KioskNumpad from "./kiosk-numpad";
 
 export default async function KioskPage() {
@@ -38,5 +39,5 @@ export default async function KioskPage() {
   const config = await getWorkspaceConfig(ws.workspaceId, branchId);
   const checkoutEnabled = config?.checkoutEnabled ?? false;
 
-  return <KioskNumpad branchId={branchId} checkoutEnabled={checkoutEnabled} />;
+  return <KioskNumpad branchId={branchId} checkoutEnabled={checkoutEnabled} overlayResetMs={cfg.kiosk.overlayResetMs} />;
 }

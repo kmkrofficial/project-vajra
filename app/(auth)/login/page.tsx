@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { signInUser } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   Card,
   CardContent,
@@ -48,8 +48,7 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <FormField label="Email" htmlFor="email" required>
             <Input
               id="email"
               name="email"
@@ -58,9 +57,8 @@ export default function LoginPage() {
               required
               autoComplete="email"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+          </FormField>
+          <FormField label="Password" htmlFor="password" required constraint="Min 8 characters">
             <Input
               id="password"
               name="password"
@@ -70,7 +68,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               minLength={8}
             />
-          </div>
+          </FormField>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in…" : "Sign In"}
           </Button>

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { CreditCard, Fingerprint, MessageSquare } from "lucide-react";
 import { getSession } from "@/lib/actions/auth";
 import { getActiveWorkspace } from "@/lib/workspace-cookie";
 import { getWorkspaceDetails } from "@/lib/dal/workspace";
@@ -27,64 +28,82 @@ export default async function SettingsPage() {
   const checkoutEnabled = config?.checkoutEnabled ?? false;
 
   return (
-    <div className="space-y-8 p-4 md:p-6" data-testid="settings-page">
-      <h1 className="text-xl font-bold text-foreground">Settings</h1>
+    <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6" data-testid="settings-page">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">
+          Configure your gym&apos;s payment, kiosk, and notification preferences.
+        </p>
+      </div>
 
-      {/* UPI Handle */}
-      <section className="space-y-2">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            UPI Handle
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Your UPI ID for receiving payments. This is used to generate
-            payment QR codes and UPI deep links for members.
-          </p>
+      {/* ── Payment Settings ── */}
+      <section className="rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+          <div className="rounded-lg bg-primary/10 p-2">
+            <CreditCard className="size-4 text-primary" strokeWidth={1.5} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Payment Settings
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              UPI handle and payment QR code configuration
+            </p>
+          </div>
         </div>
-        <UpiHandleEditor defaultUpiId={workspace.ownerUpiId ?? ""} />
+
+        <div className="divide-y divide-border">
+          <div className="px-5 py-4">
+            <UpiHandleEditor defaultUpiId={workspace.ownerUpiId ?? ""} />
+          </div>
+          <div className="px-5 py-4">
+            <UpiQrUpload defaultImageUrl={workspace.upiQrImageUrl ?? null} />
+          </div>
+        </div>
       </section>
 
-      {/* Member Checkout */}
-      <section className="space-y-2">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            Member Check-out
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            When enabled, a second kiosk PIN entry will check the member out
-            (close their session). When off, the kiosk only records check-ins.
-          </p>
+      {/* ── Kiosk Settings ── */}
+      <section className="rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+          <div className="rounded-lg bg-primary/10 p-2">
+            <Fingerprint className="size-4 text-primary" strokeWidth={1.5} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Kiosk Settings
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Self-service kiosk check-in behaviour
+            </p>
+          </div>
         </div>
-        <CheckoutToggle defaultEnabled={checkoutEnabled} />
+
+        <div className="px-5 py-4">
+          <CheckoutToggle defaultEnabled={checkoutEnabled} />
+        </div>
       </section>
 
-      {/* UPI QR Code */}
-      <section className="space-y-2">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            UPI QR Code
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Upload your UPI payment QR code. This will be shown to members
-            during payment instead of the auto-generated QR.
-          </p>
+      {/* ── Notifications ── */}
+      <section className="rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+          <div className="rounded-lg bg-primary/10 p-2">
+            <MessageSquare className="size-4 text-primary" strokeWidth={1.5} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Notifications
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              WhatsApp renewal reminder templates
+            </p>
+          </div>
         </div>
-        <UpiQrUpload defaultImageUrl={workspace.upiQrImageUrl ?? null} />
-      </section>
 
-      {/* WhatsApp Message Template */}
-      <section className="space-y-2">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            WhatsApp Message
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Customize the renewal reminder message sent via WhatsApp.
-          </p>
+        <div className="px-5 py-4">
+          <WhatsappTemplateEditor
+            defaultTemplate={workspace.whatsappTemplate ?? null}
+          />
         </div>
-        <WhatsappTemplateEditor
-          defaultTemplate={workspace.whatsappTemplate ?? null}
-        />
       </section>
     </div>
   );

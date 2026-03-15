@@ -66,8 +66,6 @@ test.describe.serial("Employee Invite Flow", () => {
     await page.getByLabel("Email").fill(user.email);
     await page.getByLabel("Password").fill(user.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
@@ -95,8 +93,7 @@ test.describe.serial("Employee Invite Flow", () => {
     await page.getByRole("option", { name: "Trainer" }).click();
 
     // Select branch
-    await page.getByTestId("emp-branch-select").click();
-    await page.getByRole("option", { name: "Main Branch" }).click();
+    await page.getByTestId("emp-branch-select").locator("label", { hasText: "Main Branch" }).click();
 
     // Submit
     await page.getByTestId("emp-submit").click();
@@ -214,8 +211,7 @@ test.describe.serial("Employee Invite Flow", () => {
     await page.getByTestId("emp-role-select").click();
     await page.getByRole("option", { name: "Receptionist" }).click();
 
-    await page.getByTestId("emp-branch-select").click();
-    await page.getByRole("option", { name: "Main Branch" }).click();
+    await page.getByTestId("emp-branch-select").locator("label", { hasText: "Main Branch" }).click();
 
     await page.getByTestId("emp-submit").click();
 
@@ -249,8 +245,7 @@ test.describe.serial("Employee Invite Flow", () => {
 
     await page.getByTestId("emp-role-select").click();
     await page.getByRole("option", { name: "Trainer" }).click();
-    await page.getByTestId("emp-branch-select").click();
-    await page.getByRole("option", { name: "Main Branch" }).click();
+    await page.getByTestId("emp-branch-select").locator("label", { hasText: "Main Branch" }).click();
 
     await page.getByTestId("emp-submit").click();
 
@@ -274,8 +269,7 @@ test.describe.serial("Employee Invite Flow", () => {
 
     await page.getByTestId("emp-role-select").click();
     await page.getByRole("option", { name: "Trainer" }).click();
-    await page.getByTestId("emp-branch-select").click();
-    await page.getByRole("option", { name: "Main Branch" }).click();
+    await page.getByTestId("emp-branch-select").locator("label", { hasText: "Main Branch" }).click();
 
     await page.getByTestId("emp-submit").click();
 
@@ -291,8 +285,6 @@ test.describe.serial("Employee Invite Flow", () => {
     await page.getByLabel("Email").fill(RECEPTIONIST.email);
     await page.getByLabel("Password").fill(RECEPTIONIST.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/\/workspaces/, { timeout: 10_000 });
-    await page.locator("[data-testid^='workspace-card-']").first().click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
     await page.goto("/app/employees");
