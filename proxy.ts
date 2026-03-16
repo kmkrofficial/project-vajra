@@ -18,6 +18,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Skip middleware for server action POST requests
+  if (request.headers.has("Next-Action")) {
+    return NextResponse.next();
+  }
+
   // Strip locale prefix for auth logic (e.g. /hi/login → /login)
   const localePattern = /^\/(en|hi|kn|ta|te|ml)(\/|$)/;
   const strippedPath = pathname.replace(localePattern, "/");
