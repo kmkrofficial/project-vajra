@@ -3,7 +3,7 @@
  * These helpers seed the database directly for test setup.
  */
 import { randomBytes, randomUUID } from "node:crypto";
-import { scryptAsync } from "@noble/hashes/scrypt";
+import { scryptAsync } from "@noble/hashes/scrypt.js";
 import postgres from "postgres";
 
 const TEST_DB_URL =
