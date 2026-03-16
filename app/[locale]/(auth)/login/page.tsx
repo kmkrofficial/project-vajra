@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { signInUser } from "@/lib/actions/auth";
@@ -21,6 +21,7 @@ import {
 export default function LoginPage() {
   const t = useTranslations("auth");
   const router = useRouter();
+  const currentLocale = useLocale();
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -34,8 +35,15 @@ export default function LoginPage() {
     const result = await signInUser(email, password);
 
     if (result.success) {
-      router.push("/workspaces");
-      router.refresh();
+      // Navigate to the user's saved locale if different from current page locale
+      const userLocale = result.locale ?? "en";
+      const prefix = userLocale === "en" ? "" : `/${userLocale}`;
+      if (userLocale !== currentLocale) {
+        window.location.href = `${prefix}/workspaces`;
+      } else {
+        router.push("/workspaces");
+        router.refresh();
+      }
     } else {
       toast.error(result.error ?? t("invalidCredentials"));
       setLoading(false);

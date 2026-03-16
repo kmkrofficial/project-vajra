@@ -553,7 +553,9 @@
     "saveChanges": "परिवर्तन सहेजें",
     "saving": "सहेज रहे हैं…",
     "updated": "प्रोफाइल अपडेट",
-    "nameTooShort": "नाम कम से कम 2 अक्षर का होना चाहिए।"
+    "nameTooShort": "नाम कम से कम 2 अक्षर का होना चाहिए।",
+    "language": "भाषा",
+    "languageTooltip": "आपकी पसंदीदा UI भाषा"
   },
 
   "kiosk": {

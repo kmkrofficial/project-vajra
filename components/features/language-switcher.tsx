@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { locales, type Locale } from "@/i18n/routing";
+import { updateUserLocale } from "@/lib/actions/auth";
 import { Globe } from "lucide-react";
 import {
   DropdownMenu,
@@ -11,7 +12,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ persist = false }: { persist?: boolean }) {
   const t = useTranslations("language");
   const locale = useLocale();
   const router = useRouter();
@@ -20,6 +21,10 @@ export function LanguageSwitcher() {
   function handleSwitch(nextLocale: Locale) {
     if (nextLocale === locale) return;
     router.replace(pathname, { locale: nextLocale });
+    // Save to DB for authenticated users (fire-and-forget)
+    if (persist) {
+      updateUserLocale(nextLocale).catch(() => {});
+    }
   }
 
   return (

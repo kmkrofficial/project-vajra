@@ -258,7 +258,7 @@ export function TopBar({
       <div className="flex items-center gap-1">
 
         {/* Language switcher */}
-        <LanguageSwitcher />
+        <LanguageSwitcher persist />
 
         {/* Theme toggle */}
         <DropdownMenu>

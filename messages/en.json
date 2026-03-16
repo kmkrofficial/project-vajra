@@ -553,7 +553,9 @@
     "saveChanges": "Save Changes",
     "saving": "Saving…",
     "updated": "Profile updated",
-    "nameTooShort": "Name must be at least 2 characters."
+    "nameTooShort": "Name must be at least 2 characters.",
+    "language": "Language",
+    "languageTooltip": "Your preferred UI language"
   },
 
   "kiosk": {

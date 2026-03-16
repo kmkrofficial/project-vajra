@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getSession } from "@/lib/actions/auth";
+import { getSession, getUserLocale } from "@/lib/actions/auth";
 import ProfileForm from "./profile-form";
 
 export default async function ProfilePage({
@@ -16,6 +16,8 @@ export default async function ProfilePage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
+  const savedLocale = await getUserLocale();
+
   return (
     <div className="mx-auto max-w-lg space-y-6 p-4 md:p-6" data-testid="profile-page">
       <div>
@@ -28,6 +30,7 @@ export default async function ProfilePage({
       <ProfileForm
         defaultName={session.user.name ?? ""}
         email={session.user.email}
+        defaultLocale={savedLocale}
       />
     </div>
   );
