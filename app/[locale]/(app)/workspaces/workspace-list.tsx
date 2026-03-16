@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
@@ -31,6 +31,14 @@ export function WorkspaceList({
   const { setWorkspace } = useWorkspace();
   const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Single workspace → auto-select on mount (cookies can only be set from a client action)
+  useEffect(() => {
+    if (workspaces.length === 1) {
+      handleSelect(workspaces[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleSelect(ws: WorkspaceItem) {
     setSelectedId(ws.id);

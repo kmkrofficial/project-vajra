@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
 import { getUserWorkspaces } from "@/lib/dal/workspace";
-import { switchWorkspaceAction } from "@/lib/actions/workspace";
 import { WorkspaceList } from "./workspace-list";
 
 export default async function WorkspacesPage({
@@ -22,12 +21,6 @@ export default async function WorkspacesPage({
   // Users with no workspaces must complete onboarding first
   if (workspaces.length === 0) {
     redirect("/onboarding");
-  }
-
-  // Single workspace → auto-select and skip to dashboard
-  if (workspaces.length === 1) {
-    await switchWorkspaceAction(workspaces[0].id);
-    redirect("/app/dashboard");
   }
 
   return (
