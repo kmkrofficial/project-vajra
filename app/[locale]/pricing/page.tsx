@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MarketingNav } from "@/components/marketing/nav";
 import { MarketingFooter } from "@/components/marketing/footer";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/marketing/animations";
-import { Check, ArrowRight, Zap, Building2, Crown } from "lucide-react";
+import { Check, ArrowRight, Gift } from "lucide-react";
 
 export default async function PricingPage({
   params,
@@ -14,55 +14,16 @@ export default async function PricingPage({
   setRequestLocale(locale);
   const t = await getTranslations("pricing");
 
-  const plans = [
-    {
-      nameKey: "starterName",
-      priceKey: "starterPrice",
-      descKey: "starterDesc",
-      icon: Zap,
-      featured: false,
-      features: [
-        "starterF1",
-        "starterF2",
-        "starterF3",
-        "starterF4",
-        "starterF5",
-      ] as const,
-      ctaKey: "starterCta",
-    },
-    {
-      nameKey: "proName",
-      priceKey: "proPrice",
-      descKey: "proDesc",
-      icon: Crown,
-      featured: true,
-      features: [
-        "proF1",
-        "proF2",
-        "proF3",
-        "proF4",
-        "proF5",
-        "proF6",
-        "proF7",
-      ] as const,
-      ctaKey: "proCta",
-    },
-    {
-      nameKey: "enterpriseName",
-      priceKey: "enterprisePrice",
-      descKey: "enterpriseDesc",
-      icon: Building2,
-      featured: false,
-      features: [
-        "enterpriseF1",
-        "enterpriseF2",
-        "enterpriseF3",
-        "enterpriseF4",
-        "enterpriseF5",
-      ] as const,
-      ctaKey: "enterpriseCta",
-    },
-  ];
+  const features = [
+    "freeF1",
+    "freeF2",
+    "freeF3",
+    "freeF4",
+    "freeF5",
+    "freeF6",
+    "freeF7",
+    "freeF8",
+  ] as const;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -90,65 +51,45 @@ export default async function PricingPage({
         </div>
       </section>
 
-      {/* ── Pricing Cards ─────────────────────────────────────────────── */}
-      <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 md:pb-28">
-        <StaggerContainer className="grid gap-6 md:grid-cols-3" stagger={0.12}>
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            return (
-              <StaggerItem key={plan.nameKey}>
-                <div
-                  className={`relative flex h-full flex-col rounded-2xl border p-8 transition-all ${
-                    plan.featured
-                      ? "border-primary bg-card shadow-xl shadow-primary/10 ring-1 ring-primary/20"
-                      : "border-border bg-card hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
-                  }`}
-                >
-                  {plan.featured && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
-                      {t("mostPopular")}
-                    </div>
-                  )}
+      {/* ── Free Plan Card ────────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-xl px-4 pb-20 sm:px-6 md:pb-28">
+        <FadeIn delay={0.3}>
+          <div className="relative flex flex-col rounded-2xl border border-primary bg-card p-8 shadow-xl shadow-primary/10 ring-1 ring-primary/20">
+            <div className="mb-5 inline-flex self-start rounded-xl bg-primary/10 p-3">
+              <Gift className="size-5 text-primary" strokeWidth={1.5} />
+            </div>
 
-                  <div className="mb-5 inline-flex self-start rounded-xl bg-primary/10 p-3">
-                    <Icon className="size-5 text-primary" strokeWidth={1.5} />
-                  </div>
+            <h3 className="text-xl font-bold">{t("freeName")}</h3>
+            <p className="mt-1.5 text-sm text-muted-foreground">{t("freeDesc")}</p>
 
-                  <h3 className="text-xl font-bold">{t(plan.nameKey)}</h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground">{t(plan.descKey)}</p>
+            <div className="mt-6 mb-6">
+              <span className="text-4xl font-extrabold tracking-tight">{t("freePrice")}</span>
+            </div>
 
-                  <div className="mt-6 mb-6">
-                    <span className="text-4xl font-extrabold tracking-tight">{t(plan.priceKey)}</span>
-                    {plan.nameKey !== "enterpriseName" && (
-                      <span className="ml-1.5 text-sm text-muted-foreground">{t("perMonth")}</span>
-                    )}
-                  </div>
+            <ul className="mb-8 flex-1 space-y-3">
+              {features.map((fKey) => (
+                <li key={fKey} className="flex items-start gap-2.5 text-sm">
+                  <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                  <span className="text-muted-foreground">{t(fKey)}</span>
+                </li>
+              ))}
+            </ul>
 
-                  <ul className="mb-8 flex-1 space-y-3">
-                    {plan.features.map((fKey) => (
-                      <li key={fKey} className="flex items-start gap-2.5 text-sm">
-                        <Check className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
-                        <span className="text-muted-foreground">{t(fKey)}</span>
-                      </li>
-                    ))}
-                  </ul>
+            <Link
+              href="/signup"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-xl"
+            >
+              {t("freeCta")}
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+            </Link>
+          </div>
+        </FadeIn>
 
-                  <Link
-                    href="/signup"
-                    className={`group inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all ${
-                      plan.featured
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl"
-                        : "border border-border hover:bg-muted"
-                    }`}
-                  >
-                    {t(plan.ctaKey)}
-                    <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
-                  </Link>
-                </div>
-              </StaggerItem>
-            );
-          })}
-        </StaggerContainer>
+        <FadeIn delay={0.4}>
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            {t("paidPlansNote")}
+          </p>
+        </FadeIn>
       </section>
 
       {/* ── FAQ ────────────────────────────────────────────────────────── */}
@@ -161,7 +102,7 @@ export default async function PricingPage({
           </FadeIn>
 
           <StaggerContainer className="mt-12 divide-y divide-border" stagger={0.08} delay={0.2}>
-            {(["faq1", "faq2", "faq3", "faq4"] as const).map((faqKey) => (
+            {(["faq1", "faq2", "faq3"] as const).map((faqKey) => (
               <StaggerItem key={faqKey} className="py-6">
                 <h3 className="text-base font-semibold">{t(`${faqKey}Q`)}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

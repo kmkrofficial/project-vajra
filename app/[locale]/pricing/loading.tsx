@@ -11,7 +11,6 @@ export default function PricingLoading() {
           <div className="hidden items-center gap-4 md:flex">
             <div className="h-4 w-12 animate-pulse rounded bg-muted" />
             <div className="h-4 w-12 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-12 animate-pulse rounded bg-muted" />
           </div>
           <div className="hidden items-center gap-3 md:flex">
             <div className="h-9 w-16 animate-pulse rounded-lg bg-muted" />
@@ -28,28 +27,27 @@ export default function PricingLoading() {
         </div>
       </section>
 
-      {/* Cards skeleton */}
+      {/* Card skeleton */}
       <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 md:pb-28">
-        <div className="grid gap-6 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex flex-col rounded-2xl border border-border bg-card p-8">
-              <div className="mb-5 size-11 animate-pulse rounded-xl bg-muted" />
-              <div className="h-6 w-24 animate-pulse rounded bg-muted" />
-              <div className="mt-1.5 h-4 w-40 animate-pulse rounded bg-muted" />
-              <div className="mt-6 mb-6">
-                <div className="h-10 w-28 animate-pulse rounded bg-muted" />
-              </div>
-              <div className="mb-8 flex-1 space-y-3">
-                {Array.from({ length: i === 1 ? 7 : 5 }).map((_, j) => (
-                  <div key={j} className="flex items-center gap-2.5">
-                    <div className="size-4 shrink-0 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                  </div>
-                ))}
-              </div>
-              <div className="h-11 w-full animate-pulse rounded-xl bg-muted" />
+        <div className="mx-auto max-w-md">
+          <div className="flex flex-col rounded-2xl border border-border bg-card p-8">
+            <div className="mb-5 size-11 animate-pulse rounded-xl bg-muted" />
+            <div className="h-6 w-24 animate-pulse rounded bg-muted" />
+            <div className="mt-1.5 h-4 w-40 animate-pulse rounded bg-muted" />
+            <div className="mt-6 mb-6">
+              <div className="h-10 w-28 animate-pulse rounded bg-muted" />
             </div>
-          ))}
+            <div className="mb-8 flex-1 space-y-3">
+              {Array.from({ length: 8 }).map((_, j) => (
+                <div key={j} className="flex items-center gap-2.5">
+                  <div className="size-4 shrink-0 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                </div>
+              ))}
+            </div>
+            <div className="h-11 w-full animate-pulse rounded-xl bg-muted" />
+          </div>
+          <div className="mx-auto mt-6 h-4 w-72 animate-pulse rounded bg-muted" />
         </div>
       </section>
 
@@ -58,7 +56,7 @@ export default function PricingLoading() {
         <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6 md:py-28">
           <div className="mx-auto h-9 w-64 animate-pulse rounded-lg bg-muted" />
           <div className="mt-12 divide-y divide-border">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="py-6">
                 <div className="h-5 w-56 animate-pulse rounded bg-muted" />
                 <div className="mt-2 h-4 w-full animate-pulse rounded bg-muted" />

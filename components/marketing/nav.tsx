@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from "motion/react";
 const NAV_LINKS = [
   { href: "/", labelKey: "home" },
   { href: "/about", labelKey: "about" },
-  { href: "/pricing", labelKey: "pricing" },
 ] as const;
 
 export function MarketingNav() {

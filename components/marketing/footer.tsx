@@ -28,11 +28,6 @@ export async function MarketingFooter() {
             <h4 className="text-sm font-semibold">{t("footerProduct")}</h4>
             <ul className="mt-3 space-y-2.5">
               <li>
-                <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                  {t("pricing")}
-                </Link>
-              </li>
-              <li>
                 <Link href="/#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                   {t("features")}
                 </Link>
