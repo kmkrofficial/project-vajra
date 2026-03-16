@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useWorkspace, type WorkspaceRole } from "@/components/providers/workspace-provider";
 import { switchWorkspaceAction } from "@/lib/actions/workspace";
+import { Shimmer } from "@/components/ui/shimmer";
 import {
   Card,
   CardHeader,
@@ -27,10 +28,9 @@ export function WorkspaceList({
 }) {
   const t = useTranslations("workspaces");
   const { setWorkspace } = useWorkspace();
-  const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Single workspace → auto-select on mount (cookies can only be set from a client action)
+  // Single workspace → auto-select on mount
   useEffect(() => {
     if (workspaces.length === 1) {
       handleSelect(workspaces[0]);
@@ -38,18 +38,17 @@ export function WorkspaceList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleSelect(ws: WorkspaceItem) {
+  async function handleSelect(ws: WorkspaceItem) {
+    if (selectedId) return; // prevent double-clicks
     setSelectedId(ws.id);
-    startTransition(async () => {
-      const result = await switchWorkspaceAction(ws.id);
-      if (result.success) {
-        setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
-        window.location.href = "/app/dashboard";
-      } else {
-        toast.error(result.error ?? t("switchFailed"));
-        setSelectedId(null);
-      }
-    });
+    const result = await switchWorkspaceAction(ws.id);
+    if (result.success) {
+      setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
+      window.location.href = "/app/dashboard";
+    } else {
+      toast.error(result.error ?? t("switchFailed"));
+      setSelectedId(null);
+    }
   }
 
   return (
@@ -62,10 +61,10 @@ export function WorkspaceList({
           data-testid={`workspace-card-${ws.id}`}
         >
           <CardHeader>
-            <CardTitle className="text-lg">
+            <CardTitle className="flex items-center gap-2 text-lg">
               {ws.name}
-              {isPending && selectedId === ws.id && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">Loading…</span>
+              {selectedId === ws.id && (
+                <Shimmer className="h-4 w-16 rounded" />
               )}
             </CardTitle>
             <CardDescription>
