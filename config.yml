@@ -5,6 +5,13 @@
 server:
   port: 3000
 
+# ── Dev Toggles ───────────────────────────────────────────────────────────────
+# Controls whether external services actually fire in development.
+# When disabled (0), calls are logged to console instead.
+dev:
+  email_enabled: 0
+  whatsapp_enabled: 0
+
 # ── Scheduler / Cron Configuration ───────────────────────────────────────────
 schedulers:
   # Days a TRIAL member can use the gym before being moved to PENDING_PAYMENT

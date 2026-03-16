@@ -19,6 +19,11 @@ export interface AppConfig {
     port: number;
   };
 
+  dev: {
+    emailEnabled: boolean;
+    whatsappEnabled: boolean;
+  };
+
   schedulers: {
     trialPeriodDays: number;
     enquiryChurnDays: number;
@@ -62,6 +67,10 @@ export interface AppConfig {
 
 const DEFAULTS: AppConfig = {
   server: { port: 3000 },
+  dev: {
+    emailEnabled: false,
+    whatsappEnabled: false,
+  },
   schedulers: {
     trialPeriodDays: 2,
     enquiryChurnDays: 30,
@@ -169,6 +178,10 @@ export function loadConfig(): AppConfig {
   cached = {
     server: {
       port: num(data, "server", "port", DEFAULTS.server.port),
+    },
+    dev: {
+      emailEnabled: num(data, "dev", "email_enabled", 0) === 1,
+      whatsappEnabled: num(data, "dev", "whatsapp_enabled", 0) === 1,
     },
     schedulers: {
       trialPeriodDays: num(data, "schedulers", "trial_period_days", DEFAULTS.schedulers.trialPeriodDays),

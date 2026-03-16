@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { loadConfig } from "@/lib/config";
 
 /**
  * Minimal SMTP email service using Nodemailer.
@@ -6,8 +7,8 @@ import { logger } from "@/lib/logger";
  * Configuration via environment variables:
  *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
  *
- * In development, emails are logged to console instead of sent unless
- * `DEV_EMAIL_ENABLED=true` is explicitly set.
+ * In development (when `dev.email_enabled: 0` in config.yml),
+ * emails are logged to console instead of sent.
  *
  * @module lib/services/email
  */
@@ -20,9 +21,6 @@ interface EmailPayload {
   /** Optional HTML body */
   html?: string;
 }
-
-const isDev = process.env.NODE_ENV !== "production";
-const devEmailEnabled = process.env.DEV_EMAIL_ENABLED === "true";
 
 /**
  * Dynamically import nodemailer only when needed (keeps the client bundle clean).
@@ -46,14 +44,15 @@ async function getTransporter() {
 }
 
 /**
- * Send an email. In development mode (without DEV_EMAIL_ENABLED=true),
+ * Send an email. When `dev.email_enabled` is false in config.yml,
  * the email content is logged to the console and the function returns true.
  *
  * @returns true if the email was sent (or logged in dev), false on error.
  */
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
-  // Development: log instead of sending unless explicitly enabled
-  if (isDev && !devEmailEnabled) {
+  const cfg = loadConfig();
+
+  if (!cfg.dev.emailEnabled) {
     logger.info(
       {
         fn: "sendEmail",

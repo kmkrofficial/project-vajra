@@ -40,6 +40,12 @@ yarn-error.log*
 # local postgres data
 .pgdata
 
+# local R2 dev storage
+.r2-local/
+
+# Cloudflare
+.wrangler/
+
 # playwright
 /test-results/
 /playwright-report/

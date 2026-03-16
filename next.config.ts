@@ -17,8 +17,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  // Disable image optimization APIs that rely on Vercel's proprietary edge network
+  // Cloudflare Pages handles bundling — no standalone output needed
   images: { unoptimized: true },
 
   async headers() {
