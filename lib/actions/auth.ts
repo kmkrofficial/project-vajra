@@ -30,6 +30,7 @@ export async function signUpUser(
   try {
     await auth.api.signUpEmail({
       body: { email, password, name },
+      headers: await headers(),
     });
     logger.info({ action: "sign_up", email }, "User signed up successfully");
     return { success: true };

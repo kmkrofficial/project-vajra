@@ -6,7 +6,7 @@ import { routing } from "@/i18n/routing";
 const PUBLIC_ROUTES = new Set(["/login", "/signup", "/about", "/pricing", "/forgot-password", "/reset-password"]);
 
 /** Routes that require auth but NOT a workspace cookie. */
-const NO_WORKSPACE_ROUTES = new Set(["/onboarding", "/workspaces"]);
+const NO_WORKSPACE_ROUTES = new Set(["/onboarding", "/workspaces", "/verify-email"]);
 
 const intlMiddleware = createMiddleware(routing);
 
