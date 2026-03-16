@@ -1,4 +1,5 @@
 import { Dumbbell } from "lucide-react";
+import { Shimmer } from "@/components/ui/shimmer";
 
 export default function OnboardingLoading() {
   return (
@@ -13,8 +14,8 @@ export default function OnboardingLoading() {
       <div className="mx-auto mt-8 flex w-full max-w-md items-center gap-2 px-6">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-            <div className="h-1 w-full rounded-full bg-muted" />
-            <div className="h-2 w-10 animate-pulse rounded bg-muted" />
+            <Shimmer className="h-1 w-full rounded-full" />
+            <Shimmer className="h-2 w-10" />
           </div>
         ))}
       </div>
@@ -22,13 +23,13 @@ export default function OnboardingLoading() {
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-24">
         <div className="space-y-6">
           <div>
-            <div className="size-10 animate-pulse rounded-lg bg-muted" />
-            <div className="mt-3 h-7 w-40 animate-pulse rounded bg-muted" />
-            <div className="mt-2 h-4 w-64 animate-pulse rounded bg-muted" />
+            <Shimmer className="size-10 rounded-lg" />
+            <Shimmer className="mt-3 h-7 w-40" />
+            <Shimmer className="mt-2 h-4 w-64" />
           </div>
           <div className="space-y-4">
-            <div className="h-9 w-full animate-pulse rounded-lg bg-muted" />
-            <div className="h-9 w-full animate-pulse rounded-lg bg-muted" />
+            <Shimmer className="h-9 w-full rounded-lg" />
+            <Shimmer className="h-9 w-full rounded-lg" />
           </div>
         </div>
       </div>

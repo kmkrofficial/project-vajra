@@ -6,7 +6,7 @@ let _db: PostgresJsDatabase<typeof schema> | null = null;
 
 /**
  * Get or create the singleton Drizzle database instance.
- * Uses `postgres.js` driver with `prepare: false` (required for serverless-compatible pools).
+ * Uses `postgres.js` driver with `prepare: false` (required for Supabase transaction pooler).
  * @returns The Drizzle ORM database instance typed with the project schema.
  */
 export function getDb() {

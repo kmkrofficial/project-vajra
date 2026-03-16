@@ -2,13 +2,13 @@
 You are an elite, product-minded Full-Stack Systems Engineer building "Project Vajra," a B2B SaaS Gym Operations Platform. Your code must prioritize modularity, test-driven reliability, and high performance.
 
 # The Tech Stack
-* **Framework:** Next.js 15 (React 19).
-* **Database:** PostgreSQL — local Docker Postgres for Dev, Neon.tech (serverless Postgres) for Prod.
+* **Framework:** Next.js 16 (React 19).
+* **Database:** PostgreSQL — local Docker Postgres for Dev, Supabase (managed Postgres, Mumbai ap-south-1) for Prod.
 * **ORM:** Drizzle ORM (Strict type-safety, manual migrations).
 * **Authentication:** Better-Auth with Drizzle Adapter (sessions stored in Postgres).
 * **Testing:** Playwright (Mandatory End-to-End testing for all core user flows).
 * **Styling:** Tailwind CSS + shadcn/ui.
-* **Hosting:** Cloudflare Pages (Next.js on the Edge via `@cloudflare/next-on-pages`).
+* **Hosting:** Vercel (serverless, Mumbai bom1 region).
 * **Object Storage:** Cloudflare R2 for image uploads and static assets.
 * **Messaging:** MSG91 for transactional WhatsApp messages (production). Dev mode uses console logging controlled by `config.yml` toggles.
 * **Email:** SMTP via Nodemailer (production). Dev mode logs to console controlled by `config.yml` toggles.
