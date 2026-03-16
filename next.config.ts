@@ -17,8 +17,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages handles bundling — no standalone output needed
-  images: { unoptimized: true },
+  images: {
+    remotePatterns: [],
+  },
 
   async headers() {
     return [

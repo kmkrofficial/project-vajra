@@ -10,7 +10,7 @@ const NO_WORKSPACE_ROUTES = new Set(["/onboarding", "/workspaces"]);
 
 const intlMiddleware = createMiddleware(routing);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow auth API routes through
