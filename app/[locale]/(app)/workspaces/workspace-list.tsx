@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { useWorkspace, type WorkspaceRole } from "@/components/providers/workspace-provider";
 import { switchWorkspaceAction } from "@/lib/actions/workspace";
@@ -26,7 +25,6 @@ export function WorkspaceList({
 }: {
   workspaces: WorkspaceItem[];
 }) {
-  const router = useRouter();
   const t = useTranslations("workspaces");
   const { setWorkspace } = useWorkspace();
   const [isPending, startTransition] = useTransition();
@@ -46,8 +44,7 @@ export function WorkspaceList({
       const result = await switchWorkspaceAction(ws.id);
       if (result.success) {
         setWorkspace(ws.id, result.branchId, result.role as WorkspaceRole);
-        router.push("/app/dashboard");
-        router.refresh();
+        window.location.href = "/app/dashboard";
       } else {
         toast.error(result.error ?? t("switchFailed"));
         setSelectedId(null);
