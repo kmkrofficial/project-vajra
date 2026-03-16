@@ -1,4 +1,5 @@
-import { LanguageSwitcher } from "@/components/features/language-switcher";
+import { MarketingNav } from "@/components/marketing/nav";
+import { MarketingFooter } from "@/components/marketing/footer";
 
 export default function AuthLayout({
   children,
@@ -6,11 +7,12 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="fixed top-4 right-4">
-        <LanguageSwitcher />
-      </div>
-      <div className="w-full max-w-sm">{children}</div>
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <MarketingNav />
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="w-full max-w-sm">{children}</div>
+      </main>
+      <MarketingFooter />
     </div>
   );
 }

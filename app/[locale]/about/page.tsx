@@ -87,7 +87,7 @@ export default async function AboutPage({
               { icon: Shield, titleKey: "valueReliability", descKey: "valueReliabilityDesc" },
             ].map(({ icon: Icon, titleKey, descKey }) => (
               <StaggerItem key={titleKey}>
-                <div className="rounded-2xl border border-border bg-card p-8">
+                <div className="h-full rounded-2xl border border-border bg-card p-8">
                   <div className="mb-5 inline-flex rounded-xl bg-primary/10 p-3">
                     <Icon className="size-5 text-primary" strokeWidth={1.5} />
                   </div>
