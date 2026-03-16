@@ -370,6 +370,7 @@ export function MembersList({
               <SelectItem
                 key={opt.key}
                 value={opt.key}
+                label={t(opt.labelKey)}
                 data-testid={`sort-${opt.key}`}
               >
                 {t(opt.labelKey)}

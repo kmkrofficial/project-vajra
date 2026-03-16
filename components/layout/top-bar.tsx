@@ -215,7 +215,7 @@ export function TopBar({
       </div>
 
       {/* Center: Workspace + Branch */}
-      <div className="hidden md:block" />
+      <div className="flex items-center gap-1.5 text-sm font-medium">
       {workspaces.length > 1 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -250,8 +250,7 @@ export function TopBar({
         </span>
       )}
       {/* Branch selector — hover dropdown */}
-      <div className="flex items-center gap-1.5 text-sm font-medium">
-        {renderBranchSelector()}
+      {renderBranchSelector()}
       </div>
 
       {/* Right: Language + Theme toggle + User menu */}

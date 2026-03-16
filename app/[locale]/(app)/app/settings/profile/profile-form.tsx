@@ -113,7 +113,7 @@ export default function ProfileForm({ defaultName, email, defaultLocale }: Profi
               </SelectTrigger>
               <SelectContent>
                 {locales.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
+                  <SelectItem key={loc} value={loc} label={tl(loc)}>
                     {tl(loc)}
                   </SelectItem>
                 ))}

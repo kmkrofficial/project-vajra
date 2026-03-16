@@ -276,9 +276,9 @@ export function PlansTable({ plans, branches }: { plans: Plan[]; branches: Branc
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">{t("allBranches")}</SelectItem>
+                      <SelectItem value="__all__" label={t("allBranches")}>{t("allBranches")}</SelectItem>
                       {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
+                        <SelectItem key={b.id} value={b.id} label={b.name}>
                           {b.name}
                         </SelectItem>
                       ))}

@@ -397,9 +397,9 @@ function InviteForm({
             <SelectValue placeholder={t("inviteForm.selectRole")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="manager">{tr("manager")}</SelectItem>
-            <SelectItem value="trainer">{tr("trainer")}</SelectItem>
-            <SelectItem value="receptionist">{tr("receptionist")}</SelectItem>
+            <SelectItem value="manager" label={tr("manager")}>{tr("manager")}</SelectItem>
+            <SelectItem value="trainer" label={tr("trainer")}>{tr("trainer")}</SelectItem>
+            <SelectItem value="receptionist" label={tr("receptionist")}>{tr("receptionist")}</SelectItem>
           </SelectContent>
         </Select>
       </FormField>
@@ -557,9 +557,9 @@ function EditForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="manager">{tr("manager")}</SelectItem>
-            <SelectItem value="trainer">{tr("trainer")}</SelectItem>
-            <SelectItem value="receptionist">{tr("receptionist")}</SelectItem>
+            <SelectItem value="manager" label={tr("manager")}>{tr("manager")}</SelectItem>
+            <SelectItem value="trainer" label={tr("trainer")}>{tr("trainer")}</SelectItem>
+            <SelectItem value="receptionist" label={tr("receptionist")}>{tr("receptionist")}</SelectItem>
           </SelectContent>
         </Select>
       </FormField>
