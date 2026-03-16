@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
-import { signUpUser } from "@/lib/actions/auth";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
@@ -32,15 +31,17 @@ export default function SignupPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const result = await signUpUser(email, password, name);
+    const { error } = await authClient.signUp.email({ email, password, name });
 
-    if (result.success) {
-      toast.success(t("signUpSuccess"));
-      router.push("/verify-email");
-    } else {
-      toast.error(result.error ?? "Signup failed. Please try again.");
+    if (error) {
+      toast.error(error.message ?? "Signup failed. Please try again.");
       setLoading(false);
+      return;
     }
+
+    // Session cookie is now set by the API response (Set-Cookie header).
+    toast.success(t("signUpSuccess"));
+    router.push("/verify-email");
   }
 
   return (

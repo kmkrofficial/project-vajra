@@ -172,6 +172,7 @@ export async function updateUserLocale(
 
 /**
  * Get the current user's saved locale preference from the database.
+ * Also sets the NEXT_LOCALE cookie so next-intl uses the preferred language.
  */
 export async function getUserLocale(): Promise<string> {
   const session = await getSession();
@@ -183,5 +184,14 @@ export async function getUserLocale(): Promise<string> {
     .where(eq(userTable.id, session.user.id))
     .limit(1);
 
-  return rows[0]?.locale ?? "en";
+  const locale = rows[0]?.locale ?? "en";
+
+  const cookieStore = await cookies();
+  cookieStore.set("NEXT_LOCALE", locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
+  return locale;
 }

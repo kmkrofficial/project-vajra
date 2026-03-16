@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { toast } from "sonner";
-import { signInUser } from "@/lib/actions/auth";
+import { authClient } from "@/lib/auth-client";
+import { getUserLocale } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
@@ -29,17 +30,19 @@ export default function LoginPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const result = await signInUser(email, password);
+    const { error } = await authClient.signIn.email({ email, password });
 
-    if (result.success) {
-      // Full navigation to ensure session cookie is sent and layout switches cleanly
-      const userLocale = result.locale ?? "en";
-      const prefix = userLocale === "en" ? "" : `/${userLocale}`;
-      window.location.href = `${prefix}/workspaces`;
-    } else {
-      toast.error(result.error ?? t("invalidCredentials"));
+    if (error) {
+      toast.error(error.message ?? t("invalidCredentials"));
       setLoading(false);
+      return;
     }
+
+    // Session cookie is now set by the API response (Set-Cookie header).
+    // Fetch locale preference and redirect.
+    const userLocale = await getUserLocale();
+    const prefix = userLocale === "en" ? "" : `/${userLocale}`;
+    window.location.href = `${prefix}/workspaces`;
   }
 
   return (
