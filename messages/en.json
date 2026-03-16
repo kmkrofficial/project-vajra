@@ -216,7 +216,36 @@
     "hasAccount": "Already have an account?",
     "signInLink": "Sign in",
     "signUpSuccess": "Account created! Please verify your email.",
-    "invalidCredentials": "Invalid credentials."
+    "invalidCredentials": "Invalid credentials.",
+    "forgotPassword": "Forgot password?"
+  },
+
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "description": "Enter your email and we'll send you a link to reset your password.",
+    "sendLink": "Send Reset Link",
+    "sending": "Sending…",
+    "checkEmail": "Check your email",
+    "checkEmailDescription": "If an account exists with that email, we've sent a password reset link. Check your inbox.",
+    "backToLogin": "Back to login",
+    "error": "Something went wrong. Please try again."
+  },
+
+  "resetPassword": {
+    "title": "Reset your password",
+    "description": "Enter your new password below.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "resetButton": "Reset Password",
+    "resetting": "Resetting…",
+    "passwordMismatch": "Passwords do not match.",
+    "successTitle": "Password reset!",
+    "successDescription": "Your password has been updated. You can now sign in with your new password.",
+    "backToLogin": "Back to login",
+    "invalidTitle": "Invalid or expired link",
+    "invalidDescription": "This password reset link is invalid or has expired.",
+    "requestNew": "Request a new link",
+    "error": "Something went wrong. Please try again."
   },
 
   "verifyEmail": {

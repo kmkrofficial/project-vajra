@@ -79,6 +79,14 @@ export default function LoginPage() {
               minLength={8}
             />
           </FormField>
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
+              {t("forgotPassword")}
+            </Link>
+          </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t("signingIn") : t("signIn")}
           </Button>
