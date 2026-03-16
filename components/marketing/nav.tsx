@@ -3,6 +3,7 @@
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/features/language-switcher";
+import { ThemeToggle } from "@/components/marketing/theme-toggle";
 import { Dumbbell, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -71,6 +72,7 @@ export function MarketingNav() {
 
         {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <LanguageSwitcher />
           <Link
             href="/login"
@@ -125,6 +127,7 @@ export function MarketingNav() {
               })}
               <div className="my-2 border-t border-border" />
               <div className="flex items-center gap-3 px-1">
+                <ThemeToggle />
                 <LanguageSwitcher />
               </div>
               <div className="flex flex-col gap-2 pt-2">
