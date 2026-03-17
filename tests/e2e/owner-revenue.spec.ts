@@ -1,5 +1,5 @@
-import { test, expect } from "@playwright/test";
-import { seedWorkspaceForUser, cleanupTestData, getTestDb, createTestUser } from "./helpers";
+﻿import { test, expect } from "@playwright/test";
+import { seedGymForUser, cleanupTestData, getTestDb, createTestUser } from "./helpers";
 
 const TEST_USER = {
   name: "Revenue Test Owner",
@@ -7,7 +7,7 @@ const TEST_USER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let userId: string;
 
 test.describe("Owner Revenue Flow", () => {
@@ -16,14 +16,14 @@ test.describe("Owner Revenue Flow", () => {
     // Create user directly in DB (bypasses UI signup race condition)
     userId = await createTestUser(TEST_USER);
 
-    // Seed workspace
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
   });
 
   test.afterAll(async () => {
-    if (workspaceId) {
-      await cleanupTestData(workspaceId);
+    if (gymId) {
+      await cleanupTestData(gymId);
     }
     // Clean up the test user
     const sql = getTestDb();
@@ -31,17 +31,17 @@ test.describe("Owner Revenue Flow", () => {
     await sql.end();
   });
 
-  test("full revenue flow: create plan → add member → UPI QR → mark paid", async ({
+  test("full revenue flow: create plan â†’ add member â†’ UPI QR â†’ mark paid", async ({
     page,
   }) => {
-    // ── Step 1: Login ──
+    // â”€â”€ Step 1: Login â”€â”€
     await page.goto("/login");
     await page.getByLabel("Email").fill(TEST_USER.email);
     await page.getByLabel("Password").fill(TEST_USER.password);
     await page.getByRole("button", { name: "Sign In" }).click();
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 
-    // ── Step 3: Navigate to Plans and create a plan ──
+    // â”€â”€ Step 3: Navigate to Plans and create a plan â”€â”€
     await page.goto("/app/settings/plans");
     await expect(page).toHaveURL(/\/app\/settings\/plans/);
 
@@ -50,7 +50,7 @@ test.describe("Owner Revenue Flow", () => {
 
     // Fill out the plan form
     await page.getByLabel("Plan Name").fill("1 Month Standard");
-    await page.getByLabel("Price (₹)").fill("1500");
+    await page.getByLabel("Price (â‚¹)").fill("1500");
     await page.getByLabel("Duration (days)").fill("30");
     await page.getByTestId("submit-plan-btn").click();
 
@@ -58,9 +58,9 @@ test.describe("Owner Revenue Flow", () => {
     await expect(page.getByText("1 Month Standard")).toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.getByText("₹1500")).toBeVisible();
+    await expect(page.getByText("â‚¹1500")).toBeVisible();
 
-    // ── Step 4: Navigate to Members page and add a member ──
+    // â”€â”€ Step 4: Navigate to Members page and add a member â”€â”€
     await page.goto("/app/members");
     await page.getByTestId("add-member-btn").click();
 
@@ -75,14 +75,14 @@ test.describe("Owner Revenue Flow", () => {
     // Submit to proceed to payment
     await page.getByTestId("sheet-submit-member").click();
 
-    // ── Step 5: Verify QR code appears ──
+    // â”€â”€ Step 5: Verify QR code appears â”€â”€
     await expect(page.getByTestId("upi-qr-code")).toBeVisible({
       timeout: 5_000,
     });
     // Verify the UPI string contains expected parts
     await expect(page.getByText("upi://pay")).toBeVisible();
 
-    // ── Step 6: Mark as paid ──
+    // â”€â”€ Step 6: Mark as paid â”€â”€
     await page.getByTestId("sheet-mark-paid").click();
 
     // Verify success toast
@@ -104,7 +104,7 @@ test.describe("Owner Revenue Flow", () => {
 
     await page.goto("/app/settings/plans");
     await expect(page.getByText("1 Month Standard")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("₹1500")).toBeVisible();
+    await expect(page.getByText("â‚¹1500")).toBeVisible();
   });
 
   test("UPI string contains workspace UPI ID", async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe("Owner Revenue Flow", () => {
     const sql = getTestDb();
     const transactions = await sql`
       SELECT id, amount, payment_method, status FROM transactions
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY created_at DESC
     `;
     expect(transactions.length).toBeGreaterThan(0);
@@ -149,7 +149,7 @@ test.describe("Owner Revenue Flow", () => {
     const sql = getTestDb();
     const [log] = await sql`
       SELECT action FROM audit_logs
-      WHERE workspace_id = ${workspaceId} AND action = 'MARK_AS_PAID'
+      WHERE workspace_id = ${gymId} AND action = 'MARK_AS_PAID'
       ORDER BY created_at DESC LIMIT 1
     `;
     expect(log).toBeTruthy();

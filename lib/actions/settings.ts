@@ -1,8 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
+import { getGymContext } from "@/lib/gym-context";
 import { updateWorkspaceSettings } from "@/lib/dal/workspace";
 import { upsertWorkspaceConfig } from "@/lib/dal/config";
 import { insertAuditLog } from "@/lib/dal/audit";
@@ -25,28 +24,24 @@ export async function toggleCheckoutEnabled(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Only admins can change this setting." };
   }
 
   try {
-    await upsertWorkspaceConfig(ws.workspaceId, ws.branchId ?? null, {
+    await upsertWorkspaceConfig(gym.gymId, gym.branchId ?? null, {
       checkoutEnabled: enabled,
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "TOGGLE_CHECKOUT",
       entityType: "CONFIGURATION",
-      entityId: ws.branchId ?? ws.workspaceId,
+      entityId: gym.branchId ?? gym.gymId,
       details: { checkoutEnabled: enabled },
     });
 
@@ -70,14 +65,10 @@ export async function updateUpiHandle(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Only admins can change this setting." };
   }
 
@@ -91,16 +82,16 @@ export async function updateUpiHandle(
   }
 
   try {
-    await updateWorkspaceSettings(ws.workspaceId, {
+    await updateWorkspaceSettings(gym.gymId, {
       ownerUpiId: trimmed,
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "UPDATE_UPI_HANDLE",
       entityType: "WORKSPACE",
-      entityId: ws.workspaceId,
+      entityId: gym.gymId,
       details: { upiId: trimmed },
     });
 
@@ -125,14 +116,10 @@ export async function updateUpiQrImage(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Only admins can change this setting." };
   }
 
@@ -148,16 +135,16 @@ export async function updateUpiQrImage(
   }
 
   try {
-    await updateWorkspaceSettings(ws.workspaceId, {
+    await updateWorkspaceSettings(gym.gymId, {
       upiQrImageUrl: imageDataUrl,
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: imageDataUrl ? "UPLOAD_UPI_QR" : "REMOVE_UPI_QR",
       entityType: "WORKSPACE",
-      entityId: ws.workspaceId,
+      entityId: gym.gymId,
       details: { hasImage: !!imageDataUrl },
     });
 
@@ -183,14 +170,10 @@ export async function updateWhatsappTemplate(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Only admins can change this setting." };
   }
 
@@ -203,16 +186,16 @@ export async function updateWhatsappTemplate(
   }
 
   try {
-    await updateWorkspaceSettings(ws.workspaceId, {
+    await updateWorkspaceSettings(gym.gymId, {
       whatsappTemplate: normalized,
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "UPDATE_WHATSAPP_TEMPLATE",
       entityType: "WORKSPACE",
-      entityId: ws.workspaceId,
+      entityId: gym.gymId,
       details: { hasTemplate: !!normalized },
     });
 

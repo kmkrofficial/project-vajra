@@ -1,15 +1,14 @@
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
-import { getActivePlans } from "@/lib/dal/plans";
-import { getMembers } from "@/lib/dal/members";
-import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import { getGymContext, getGymDetails, type GymRole } from "@/lib/gym-context";
 import cfg from "@/lib/config";
 import { MembersList } from "./members-list";
 
-const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
+import { getActivePlans } from "@/lib/dal/plans";
+import { getMembers } from "@/lib/dal/members";
+
+const ADMIN_ROLES: GymRole[] = ["SUPER_ADMIN", "MANAGER"];
 
 export default async function MembersPage({
   params,
@@ -22,24 +21,24 @@ export default async function MembersPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
-  const role = workspace.role as WorkspaceRole;
+  const role = workspace.role as GymRole;
   const isAdmin = ADMIN_ROLES.includes(role);
 
-  // Use the branch from the cookie — null means "All Branches" (admin only)
-  const activeBranchId = ws.branchId;
+  // Use the branch from the gym context — null means "All Branches" (admin only)
+  const activeBranchId = gym.branchId;
   const effectiveBranchId = isAdmin
     ? activeBranchId
     : activeBranchId ?? workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
   const [plans, allMembers] = await Promise.all([
-    getActivePlans(ws.workspaceId, effectiveBranchId),
-    getMembers(ws.workspaceId, effectiveBranchId),
+    getActivePlans(gym.gymId, effectiveBranchId),
+    getMembers(gym.gymId, effectiveBranchId),
   ]);
 
   const members = allMembers;

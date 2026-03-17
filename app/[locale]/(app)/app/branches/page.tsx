@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails, getBranches } from "@/lib/dal/workspace";
-import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import { getGymContext, type GymRole } from "@/lib/gym-context";
+import { getBranches } from "@/lib/dal/workspace";
 import { BranchesList } from "./branches-list";
 
-const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
+const ADMIN_ROLES: GymRole[] = ["SUPER_ADMIN", "MANAGER"];
 
 export default async function BranchesPage({
   params,
@@ -19,16 +18,13 @@ export default async function BranchesPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
-
-  const role = workspace.role as WorkspaceRole;
+  const role = gym.role as GymRole;
   if (!ADMIN_ROLES.includes(role)) redirect("/app/dashboard");
 
-  const branchList = await getBranches(ws.workspaceId);
+  const branchList = await getBranches(gym.gymId);
   const isOwner = role === "SUPER_ADMIN";
 
   return (

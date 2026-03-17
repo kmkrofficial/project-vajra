@@ -1,13 +1,13 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
+  seedGymForUser,
   seedMember,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Kiosk Flow Owner",
@@ -15,27 +15,27 @@ const OWNER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe.serial("Kiosk Self-Service Loop", () => {
   test.beforeAll(async () => {
     // Create user directly in DB (bypasses UI signup race condition)
     userId = await createTestUser(OWNER);
 
-    // Seed workspace
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Create configuration row with checkout enabled for test
     const sql2 = getTestDb();
     await sql2`
       INSERT INTO configuration (workspace_id, branch_id, checkout_enabled, theme_mode)
-      VALUES (${workspaceId}, ${branchId}, true, 'system')
+      VALUES (${gymId}, ${branchId}, true, 'system')
       ON CONFLICT DO NOTHING
     `;
     await sql2.end();
@@ -44,7 +44,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const futureExpiry = new Date();
     futureExpiry.setDate(futureExpiry.getDate() + 30);
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Kiosk Gym Member",
       phone: "9000000099",
@@ -55,15 +55,15 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
     await sql.end();
   });
 
-  // ── Helper ────────────────────────────────────────────────────────────
+  // â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page
   ) {
     await page.goto("/login");
@@ -73,12 +73,12 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("kiosk check-in with valid PIN shows success and clears", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
     // Navigate to kiosk
     await page.goto("/kiosk");
@@ -108,7 +108,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const sql = getTestDb();
     const [att] = await sql`
       SELECT id, checked_out_at FROM attendance
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY checked_in_at DESC LIMIT 1
     `;
     expect(att).toBeTruthy();
@@ -124,13 +124,13 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   test("second PIN entry checks out the member", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({
       timeout: 5_000,
     });
 
-    // Enter same PIN again — should check out
+    // Enter same PIN again â€” should check out
     await page.getByTestId("kiosk-key-5").click();
     await page.getByTestId("kiosk-key-6").click();
     await page.getByTestId("kiosk-key-7").click();
@@ -147,7 +147,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const sql = getTestDb();
     const [att] = await sql`
       SELECT checked_out_at FROM attendance
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY checked_in_at DESC LIMIT 1
     `;
     expect(att.checked_out_at).not.toBeNull();
@@ -159,7 +159,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   });
 
   test("kiosk exit button returns to dashboard", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
     // Navigate to kiosk
     await page.goto("/kiosk");
@@ -167,17 +167,17 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       timeout: 5_000,
     });
 
-    // Click the "← Dashboard" link (top-right corner)
+    // Click the "â† Dashboard" link (top-right corner)
     await page.getByTestId("kiosk-exit-btn").click();
 
     // Should navigate back to dashboard
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 
-  // ── Edge Cases ──────────────────────────────────────────────────────
+  // â”€â”€ Edge Cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("kiosk shows error for non-existent PIN", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -193,7 +193,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   });
 
   test("submit button is disabled when less than 4 digits entered", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -207,7 +207,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   });
 
   test("clear button resets PIN entry", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -224,7 +224,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   test("kiosk rejects PENDING_PAYMENT member PIN with friendly message", async ({ page }) => {
     // Seed a PENDING_PAYMENT member
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Pending Member",
       phone: "9000000088",
@@ -232,7 +232,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       status: "PENDING_PAYMENT",
     });
 
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -251,7 +251,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const pastExpiry = new Date();
     pastExpiry.setDate(pastExpiry.getDate() - 10);
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Expired Kiosk User",
       phone: "9000000077",
@@ -260,7 +260,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       expiryDate: pastExpiry,
     });
 
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -279,7 +279,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const nearExpiry = new Date();
     nearExpiry.setDate(nearExpiry.getDate() + 2);
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Almost Expired User",
       phone: "9000000055",
@@ -288,7 +288,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
       expiryDate: nearExpiry,
     });
 
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 
@@ -307,7 +307,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
     const sql = getTestDb();
     const rows = await sql`
       SELECT id FROM attendance
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY checked_in_at DESC LIMIT 1
     `;
     expect(rows.length).toBeGreaterThan(0);
@@ -315,7 +315,7 @@ test.describe.serial("Kiosk Self-Service Loop", () => {
   });
 
   test("kiosk auto-returns to idle after error overlay", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/kiosk");
     await expect(page.getByTestId("kiosk-root")).toBeVisible({ timeout: 5_000 });
 

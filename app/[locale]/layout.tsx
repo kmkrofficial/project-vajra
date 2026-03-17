@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WorkspaceProvider } from "@/components/providers/workspace-provider";
 import { routing } from "@/i18n/routing";
-import cfg from "@/lib/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,7 +54,7 @@ export default async function LocaleLayout({
         <NextTopLoader color="hsl(var(--primary))" showSpinner={false} height={3} />
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <WorkspaceProvider cookieMaxAge={cfg.auth.workspaceCookieMaxAge}>
+            <WorkspaceProvider>
               {children}
             </WorkspaceProvider>
             <Toaster richColors position="bottom-right" />

@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
+  seedGymForUser,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Member Lifecycle Owner",
@@ -14,11 +14,11 @@ const OWNER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe("Member Lifecycle & Privacy", () => {
   test.describe.configure({ mode: "serial" });
@@ -26,30 +26,30 @@ test.describe("Member Lifecycle & Privacy", () => {
     // Create user directly in DB (bypasses UI signup race condition)
     userId = await createTestUser(OWNER);
 
-    // Seed workspace + branch
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym + branch
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Seed a plan so the Add Member form has something to select
     const sql2 = getTestDb();
     await sql2`
       INSERT INTO plans (workspace_id, name, price, duration_days, active)
-      VALUES (${workspaceId}, 'Monthly Basic', 1000, 30, true)
+      VALUES (${gymId}, 'Monthly Basic', 1000, 30, true)
     `;
     await sql2.end();
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
     await sql.end();
   });
 
-  // ── Helper ────────────────────────────────────────────────────────────
+  // â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page
   ) {
     await page.goto("/login");
@@ -59,12 +59,12 @@ test.describe("Member Lifecycle & Privacy", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("add member with auto-generated PIN, view profile modal with PIN and WhatsApp", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
     // Navigate to Members page
     await page.goto("/app/members");
@@ -73,7 +73,7 @@ test.describe("Member Lifecycle & Privacy", () => {
     // Open Add Member sheet
     await page.getByTestId("add-member-btn").click();
 
-    // Fill in member details — leave Kiosk PIN blank for auto-generation
+    // Fill in member details â€” leave Kiosk PIN blank for auto-generation
     await page.getByLabel("Name").fill("Jane Auto PIN");
     await page.getByLabel("Phone").fill("9111222333");
 
@@ -88,7 +88,7 @@ test.describe("Member Lifecycle & Privacy", () => {
     // Submit the form
     await page.getByTestId("sheet-submit-member").click();
 
-    // Should advance to payment step — mark as paid
+    // Should advance to payment step â€” mark as paid
     await expect(page.getByTestId("sheet-mark-paid")).toBeVisible({
       timeout: 5_000,
     });
@@ -132,7 +132,7 @@ test.describe("Member Lifecycle & Privacy", () => {
   });
 
   test("add member with custom kiosk PIN", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/members");
 
     await page.getByTestId("add-member-btn").click();
@@ -156,15 +156,15 @@ test.describe("Member Lifecycle & Privacy", () => {
     const sql = getTestDb();
     const [member] = await sql`
       SELECT checkin_pin FROM members
-      WHERE workspace_id = ${workspaceId} AND name = 'Custom PIN User'
+      WHERE workspace_id = ${gymId} AND name = 'Custom PIN User'
     `;
-    // PIN should be stored (hashed or plain) — just verify it exists
+    // PIN should be stored (hashed or plain) â€” just verify it exists
     expect(member.checkin_pin).toBeTruthy();
     await sql.end();
   });
 
   test("member status shows as ACTIVE after payment", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/members");
 
     // The member created in previous test should have ACTIVE status
@@ -174,7 +174,7 @@ test.describe("Member Lifecycle & Privacy", () => {
   });
 
   test("member creation requires phone number", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/members");
 
     await page.getByTestId("add-member-btn").click();
@@ -193,7 +193,7 @@ test.describe("Member Lifecycle & Privacy", () => {
   });
 
   test("member creation validates invalid phone number", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/members");
 
     await page.getByTestId("add-member-btn").click();
@@ -206,7 +206,7 @@ test.describe("Member Lifecycle & Privacy", () => {
 
     await page.getByTestId("sheet-submit-member").click();
 
-    // Should show validation error (toast or inline) — the sheet should NOT advance to payment
+    // Should show validation error (toast or inline) â€” the sheet should NOT advance to payment
     await expect(page.getByTestId("sheet-mark-paid")).not.toBeVisible({ timeout: 5_000 });
   });
 
@@ -215,11 +215,11 @@ test.describe("Member Lifecycle & Privacy", () => {
     const sql = getTestDb();
     const members = await sql`
       SELECT workspace_id, branch_id, status FROM members
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
     `;
     expect(members.length).toBeGreaterThan(0);
     for (const m of members) {
-      expect(m.workspace_id).toBe(workspaceId);
+      expect(m.workspace_id).toBe(gymId);
       expect(m.branch_id).toBe(branchId);
     }
     await sql.end();

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddMemberDialog } from "./add-member-dialog";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
-import type { WorkspaceRole } from "@/lib/workspace-cookie";
+import type { GymRole } from "@/lib/gym-context";
 
 interface Member {
   id: string;
@@ -41,7 +41,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   };
 
 /** Roles that can see revenue / full member table */
-const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
+const ADMIN_ROLES: GymRole[] = ["SUPER_ADMIN", "MANAGER"];
 
 /** Members expiring within the configurable "expiring soon" window */
 function getExpiringSoon(members: Member[], expiringSoonDays: number) {
@@ -74,7 +74,7 @@ export function MembersView({
   defaultBranchId: string | null;
   ownerUpiId: string | null;
   gymName: string;
-  role: WorkspaceRole;
+  role: GymRole;
   upiQrImageUrl?: string | null;
   whatsappTemplate?: string | null;
   expiringSoonDays?: number;

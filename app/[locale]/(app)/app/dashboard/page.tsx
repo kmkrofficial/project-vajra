@@ -2,10 +2,8 @@ import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails, type GymRole } from "@/lib/gym-context";
 import { getMembers } from "@/lib/dal/members";
-import type { WorkspaceRole } from "@/lib/workspace-cookie";
 import cfg from "@/lib/config";
 import {
   Card,
@@ -31,7 +29,7 @@ import { getPopularTimes, getTodayCheckinCount } from "@/lib/dal/attendance";
 import { getMonthlyRevenue } from "@/lib/dal/analytics";
 
 /** Roles that can see revenue stats and all-branches filter. */
-const ADMIN_ROLES: WorkspaceRole[] = ["SUPER_ADMIN", "MANAGER"];
+const ADMIN_ROLES: GymRole[] = ["SUPER_ADMIN", "MANAGER"];
 
 export default async function DashboardPage({
   params,
@@ -46,17 +44,17 @@ export default async function DashboardPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
-  const role = workspace.role as WorkspaceRole;
+  const role = workspace.role as GymRole;
   const isAdmin = ADMIN_ROLES.includes(role);
 
-  // Use the branch from the cookie — null means "All Branches" (admin only)
-  const activeBranchId = ws.branchId;
+  // Use the branch from the gym context — null means "All Branches" (admin only)
+  const activeBranchId = gym.branchId;
 
   // Staff must always have a branch; fall back to assigned or first
   const effectiveBranchId = isAdmin
@@ -64,10 +62,10 @@ export default async function DashboardPage({
     : activeBranchId ?? workspace.assignedBranchId ?? workspace.branches[0]?.id ?? null;
 
   const [allMembers, popularTimes, todayCheckins, monthlyRevenue] = await Promise.all([
-    getMembers(ws.workspaceId, effectiveBranchId),
-    getPopularTimes(ws.workspaceId, effectiveBranchId),
-    getTodayCheckinCount(ws.workspaceId, effectiveBranchId),
-    isAdmin ? getMonthlyRevenue(ws.workspaceId, effectiveBranchId) : Promise.resolve(0),
+    getMembers(gym.gymId, effectiveBranchId),
+    getPopularTimes(gym.gymId, effectiveBranchId),
+    getTodayCheckinCount(gym.gymId, effectiveBranchId),
+    isAdmin ? getMonthlyRevenue(gym.gymId, effectiveBranchId) : Promise.resolve(0),
   ]);
 
   const members = allMembers;

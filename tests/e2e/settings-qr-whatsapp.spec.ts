@@ -1,13 +1,13 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
   createTestUser,
-  seedWorkspaceForUser,
+  seedGymForUser,
   cleanupTestData,
   getTestDb,
-  loginAndSelectWorkspace,
+  loginAndGoToDashboard,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Settings Owner",
@@ -16,40 +16,40 @@ const OWNER = {
 };
 
 let userId: string;
-let workspaceId: string;
+let gymId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-test.describe("Settings – UPI QR & WhatsApp Template", () => {
+test.describe("Settings â€“ UPI QR & WhatsApp Template", () => {
   test.beforeAll(async () => {
     userId = await createTestUser(OWNER);
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
     await sql.end();
   });
 
-  // ─── UPI Handle ──────────────────────────────────────────────────────────
+  // â”€â”€â”€ UPI Handle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("UPI handle section is visible with current value", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByTestId("upi-handle-section")).toBeVisible();
     const input = page.getByTestId("upi-handle-input");
     await expect(input).toBeVisible();
-    // Seeded workspace has 'testowner@upi' — save button should be disabled (no changes)
+    // Seeded workspace has 'testowner@upi' â€” save button should be disabled (no changes)
     await expect(page.getByTestId("upi-handle-save-btn")).toBeDisabled();
   });
 
   test("can update UPI handle", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -62,16 +62,16 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     await page.getByTestId("upi-handle-save-btn").click();
     await expect(page.getByText("UPI handle updated")).toBeVisible({ timeout: 10_000 });
 
-    // Verify persistence — reload page
+    // Verify persistence â€” reload page
     await page.reload();
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("upi-handle-input")).toHaveValue("newowner@okaxis");
   });
 
-  // ─── UPI QR Code Upload ─────────────────────────────────────────────────
+  // â”€â”€â”€ UPI QR Code Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("UPI QR upload section is visible on settings page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -82,7 +82,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
   });
 
   test("can upload a QR image and see preview", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -112,7 +112,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
   });
 
   test("can remove uploaded QR image", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -129,10 +129,10 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     }
   });
 
-  // ─── WhatsApp Message Template ──────────────────────────────────────────
+  // â”€â”€â”€ WhatsApp Message Template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("WhatsApp template section is visible with preview", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -146,7 +146,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
   });
 
   test("can set a custom WhatsApp template and save", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -154,7 +154,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     const saveBtn = page.getByTestId("whatsapp-template-save-btn");
 
     // Type a custom template
-    await input.fill("Hello {name}! Renew your {gym} membership (₹{amount}). Pay here: {upiLink}");
+    await input.fill("Hello {name}! Renew your {gym} membership (â‚¹{amount}). Pay here: {upiLink}");
 
     // Save button should now be enabled
     await expect(saveBtn).toBeEnabled();
@@ -169,7 +169,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
   });
 
   test("can reset WhatsApp template to default", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -190,10 +190,10 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     }
   });
 
-  // ─── Persistence Check ──────────────────────────────────────────────────
+  // â”€â”€â”€ Persistence Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("WhatsApp template persists across page reloads", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/settings");
     await expect(page.getByTestId("settings-page")).toBeVisible({ timeout: 10_000 });
 
@@ -201,7 +201,7 @@ test.describe("Settings – UPI QR & WhatsApp Template", () => {
     const saveBtn = page.getByTestId("whatsapp-template-save-btn");
 
     // Set a known template
-    const template = "Reminder: {name}, renew at {gym} for ₹{amount}";
+    const template = "Reminder: {name}, renew at {gym} for â‚¹{amount}";
     await input.fill(template);
     await saveBtn.click();
     await expect(page.getByText("WhatsApp template saved")).toBeVisible({ timeout: 10_000 });

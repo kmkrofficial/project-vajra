@@ -15,95 +15,63 @@ export type WorkspaceRole =
   | "TRAINER";
 
 interface WorkspaceContext {
-  activeWorkspaceId: string | null;
   activeBranchId: string | null;
   role: WorkspaceRole | null;
-  setWorkspace: (
-    workspaceId: string,
-    branchId: string | null,
-    role: WorkspaceRole
-  ) => void;
+  setBranch: (branchId: string | null) => void;
+  setRole: (role: WorkspaceRole) => void;
   clearWorkspace: () => void;
 }
 
 const WorkspaceCtx = createContext<WorkspaceContext | null>(null);
 
-const COOKIE_NAME = "vajra_active_workspace";
+const BRANCH_COOKIE = "vajra_active_branch";
 
-function parseWorkspaceCookie(): {
-  workspaceId: string;
-  branchId: string | null;
-  role: WorkspaceRole;
-} | null {
+function readBranchCookie(): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie
     .split("; ")
-    .find((c) => c.startsWith(`${COOKIE_NAME}=`));
+    .find((c) => c.startsWith(`${BRANCH_COOKIE}=`));
   if (!match) return null;
-  try {
-    return JSON.parse(decodeURIComponent(match.split("=")[1]));
-  } catch {
-    return null;
-  }
+  const val = match.split("=")[1];
+  return val || null;
 }
 
-function setWorkspaceCookie(
-  workspaceId: string,
-  branchId: string | null,
-  role: WorkspaceRole,
-  maxAge: number
-) {
-  const value = encodeURIComponent(
-    JSON.stringify({ workspaceId, branchId, role })
-  );
-  // Secure, SameSite=Lax, configurable expiry, path=/
-  document.cookie = `${COOKIE_NAME}=${value}; path=/; max-age=${maxAge}; SameSite=Lax`;
-}
-
-function clearWorkspaceCookie() {
-  document.cookie = `${COOKIE_NAME}=; path=/; max-age=0`;
-}
-
-export function WorkspaceProvider({ children, cookieMaxAge = 2592000 }: { children: React.ReactNode; cookieMaxAge?: number }) {
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
-    null
-  );
+export function WorkspaceProvider({
+  children,
+  initialRole,
+}: {
+  children: React.ReactNode;
+  initialRole?: WorkspaceRole | null;
+}) {
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
-  const [role, setRole] = useState<WorkspaceRole | null>(null);
+  const [role, setRoleState] = useState<WorkspaceRole | null>(initialRole ?? null);
 
-  // Hydrate from cookie on mount
+  // Hydrate branch from cookie on mount
   useEffect(() => {
-    const saved = parseWorkspaceCookie();
-    if (saved) {
-      setActiveWorkspaceId(saved.workspaceId);
-      setActiveBranchId(saved.branchId);
-      setRole(saved.role);
-    }
+    setActiveBranchId(readBranchCookie());
   }, []);
 
-  const setWorkspace = useCallback(
-    (wid: string, bid: string | null, r: WorkspaceRole) => {
-      setActiveWorkspaceId(wid);
-      setActiveBranchId(bid);
-      setRole(r);
-      setWorkspaceCookie(wid, bid, r, cookieMaxAge);
-    },
-    [cookieMaxAge]
-  );
+  const setBranch = useCallback((bid: string | null) => {
+    setActiveBranchId(bid);
+  }, []);
+
+  const setRole = useCallback((r: WorkspaceRole) => {
+    setRoleState(r);
+  }, []);
 
   const clearWorkspace = useCallback(() => {
-    setActiveWorkspaceId(null);
     setActiveBranchId(null);
-    setRole(null);
-    clearWorkspaceCookie();
+    setRoleState(null);
+    // Clear branch cookie
+    document.cookie = `${BRANCH_COOKIE}=; path=/; max-age=0`;
   }, []);
 
   return (
     <WorkspaceCtx value={{
-      activeWorkspaceId,
       activeBranchId,
       role,
-      setWorkspace,
+      setBranch,
+      setRole,
       clearWorkspace,
     }}>
       {children}

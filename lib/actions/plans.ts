@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
+import { getGymContext } from "@/lib/gym-context";
 import { insertPlan, togglePlanActive, updatePlan, getPlans } from "@/lib/dal/plans";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
@@ -32,15 +31,11 @@ export async function createPlan(data: {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   // Verify RBAC — only SUPER_ADMIN and MANAGER can manage plans
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Insufficient permissions." };
   }
 
@@ -51,7 +46,7 @@ export async function createPlan(data: {
     }
 
     const plan = await insertPlan({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       name: data.name,
       description,
       price: data.price,
@@ -60,7 +55,7 @@ export async function createPlan(data: {
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "CREATE_PLAN",
       entityType: "PLAN",
@@ -71,7 +66,7 @@ export async function createPlan(data: {
     revalidatePath("/app/settings/plans");
     return { success: true };
   } catch (err) {
-    logger.error({ err, action: "create_plan", workspaceId: ws.workspaceId, userId: session.user.id }, "Failed to create plan");
+    logger.error({ err, action: "create_plan", gymId: gym.gymId, userId: session.user.id }, "Failed to create plan");
     return { success: false, error: "Failed to create plan." };
   }
 }
@@ -91,14 +86,10 @@ export async function updatePlanAction(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!gym.role || !["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Insufficient permissions." };
   }
 
@@ -116,7 +107,7 @@ export async function updatePlanAction(
   }
 
   try {
-    const updated = await updatePlan(planId, ws.workspaceId, {
+    const updated = await updatePlan(planId, gym.gymId, {
       name: data.name?.trim(),
       description: data.description !== undefined ? (data.description?.trim() || null) : undefined,
       price: data.price,
@@ -129,7 +120,7 @@ export async function updatePlanAction(
     }
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "UPDATE_PLAN",
       entityType: "PLAN",
@@ -140,7 +131,7 @@ export async function updatePlanAction(
     revalidatePath("/app/settings/plans");
     return { success: true };
   } catch (err) {
-    logger.error({ err, action: "update_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId }, "Failed to update plan");
+    logger.error({ err, action: "update_plan", gymId: gym.gymId, userId: session.user.id, planId }, "Failed to update plan");
     return { success: false, error: "Failed to update plan." };
   }
 }
@@ -160,22 +151,18 @@ export async function togglePlan(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     return { success: false, error: "Insufficient permissions." };
   }
 
   try {
-    await togglePlanActive(planId, ws.workspaceId, active);
+    await togglePlanActive(planId, gym.gymId, active);
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "TOGGLE_PLAN",
       entityType: "PLAN",
@@ -186,7 +173,7 @@ export async function togglePlan(
     revalidatePath("/app/settings/plans");
     return { success: true };
   } catch (err) {
-    logger.error({ err, action: "toggle_plan", workspaceId: ws.workspaceId, userId: session.user.id, planId }, "Failed to toggle plan");
+    logger.error({ err, action: "toggle_plan", gymId: gym.gymId, userId: session.user.id, planId }, "Failed to toggle plan");
     return { success: false, error: "Failed to update plan." };
   }
 }
@@ -199,8 +186,8 @@ export async function fetchPlans() {
   const session = await getSession();
   if (!session?.user) return [];
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return [];
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return [];
 
-  return getPlans(ws.workspaceId);
+  return getPlans(gym.gymId);
 }

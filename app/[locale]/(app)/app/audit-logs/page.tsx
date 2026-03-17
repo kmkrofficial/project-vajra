@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails } from "@/lib/gym-context";
 import { getAuditLogs } from "@/lib/dal/audit";
 import { AuditLogsTable } from "./audit-logs-table";
 
@@ -19,18 +18,18 @@ export default async function AuditLogsPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
   // Only SUPER_ADMIN can view audit logs
   if (workspace.role !== "SUPER_ADMIN") {
     redirect("/app/dashboard");
   }
 
-  const logs = await getAuditLogs(ws.workspaceId, 200);
+  const logs = await getAuditLogs(gym.gymId, 200);
 
   // Serialize dates for client component
   const serializedLogs = logs.map((log) => ({

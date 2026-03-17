@@ -17,7 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import { signOutUser } from "@/lib/actions/auth";
-import { switchWorkspaceAction, switchBranchAction } from "@/lib/actions/workspace";
+import { switchBranchAction } from "@/lib/actions/branch";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { LanguageSwitcher } from "@/components/features/language-switcher";
 import {
@@ -34,20 +34,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 export function TopBar({
   userName,
   gymName,
-  workspaces,
   branches,
   activeBranchId,
   isAdmin,
 }: {
   userName: string;
   gymName: string;
-  workspaces: { id: string; name: string; role: string }[];
   branches: { id: string; name: string }[];
   activeBranchId: string | null;
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const { activeWorkspaceId, setWorkspace, clearWorkspace } = useWorkspace();
+  const { clearWorkspace } = useWorkspace();
   const { setTheme } = useTheme();
   const t = useTranslations("topbar");
   const tc = useTranslations("common");
@@ -65,23 +63,6 @@ export function TopBar({
   async function handleLogout() {
     clearWorkspace();
     await signOutUser();
-  }
-
-  async function handleSwitchWorkspace(ws: {
-    id: string;
-    name: string;
-    role: string;
-  }) {
-    const result = await switchWorkspaceAction(ws.id);
-    if (result.success) {
-      setWorkspace(
-        ws.id,
-        result.branchId,
-        result.role as "SUPER_ADMIN" | "MANAGER" | "RECEPTIONIST" | "TRAINER"
-      );
-      router.push("/app/dashboard");
-      router.refresh();
-    }
   }
 
   async function handleSwitchBranch(branchId: string | null) {
@@ -214,41 +195,11 @@ export function TopBar({
         <span className="text-base font-bold tracking-tight text-foreground">Vajra</span>
       </div>
 
-      {/* Center: Workspace + Branch */}
+      {/* Center: Gym Name + Branch */}
       <div className="flex items-center gap-1.5 text-sm font-medium">
-      {workspaces.length > 1 ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            id="ws-switcher-trigger"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            data-testid="workspace-switcher"
-          >
-            <span className="truncate max-w-[140px] sm:max-w-none">{gymName}</span>
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" sideOffset={8}>
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>{t("switchGym")}</DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            {workspaces.map((ws) => (
-              <DropdownMenuItem
-                key={ws.id}
-                onClick={() => handleSwitchWorkspace(ws)}
-                className={
-                  ws.id === activeWorkspaceId ? "bg-accent" : undefined
-                }
-              >
-                {ws.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
         <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
           <span className="truncate max-w-[140px] sm:max-w-none">{gymName}</span>
         </span>
-      )}
       {/* Branch selector — hover dropdown */}
       {renderBranchSelector()}
       </div>

@@ -1,13 +1,13 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Intelligence Owner",
@@ -21,12 +21,12 @@ const RECEPTIONIST = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let ownerId: string;
 let receptionistId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe("Owner Intelligence", () => {
   test.beforeAll(async () => {
@@ -34,34 +34,34 @@ test.describe("Owner Intelligence", () => {
     ownerId = await createTestUser(OWNER);
     receptionistId = await createTestUser(RECEPTIONIST);
 
-    // Seed workspace + assign owner
-    const seeded = await seedWorkspaceForUser(ownerId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym + assign owner
+    const seeded = await seedGymForUser(ownerId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Add receptionist as staff
-    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, receptionistId, "RECEPTIONIST");
 
     // Seed an audit log entry so the audit logs page has data
     const sql2 = getTestDb();
     await sql2`
       INSERT INTO audit_logs (workspace_id, user_id, action, entity_type, entity_id, details)
-      VALUES (${workspaceId}, ${ownerId}, 'ADD_MEMBER', 'MEMBER', 'test-entity-123',
+      VALUES (${gymId}, ${ownerId}, 'ADD_MEMBER', 'MEMBER', 'test-entity-123',
               '{"name": "Seeded Member"}')
     `;
     await sql2.end();
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${RECEPTIONIST.email})`;
     await sql.end();
   });
 
-  // ── Helpers ───────────────────────────────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page,
     user: { email: string; password: string }
   ) {
@@ -72,10 +72,10 @@ test.describe("Owner Intelligence", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("receptionist is blocked from analytics", async ({ page }) => {
-    await loginAndSelectWorkspace(page, RECEPTIONIST);
+    await loginAndGoToDashboard(page, RECEPTIONIST);
 
     // Try to access analytics directly
     await page.goto("/app/analytics");
@@ -88,7 +88,7 @@ test.describe("Owner Intelligence", () => {
   });
 
   test("owner can view analytics KPI cards", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER);
+    await loginAndGoToDashboard(page, OWNER);
 
     // Navigate to analytics
     await page.goto("/app/analytics");
@@ -108,7 +108,7 @@ test.describe("Owner Intelligence", () => {
   });
 
   test("owner can view audit logs with seeded data", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER);
+    await loginAndGoToDashboard(page, OWNER);
 
     // Navigate to audit logs
     await page.goto("/app/audit-logs");
@@ -126,13 +126,13 @@ test.describe("Owner Intelligence", () => {
     // Filter should be present
     await expect(page.getByTestId("audit-filter")).toBeVisible();
 
-    // Test filtering — type a filter and verify it narrows results
+    // Test filtering â€” type a filter and verify it narrows results
     await page.getByTestId("audit-filter").fill("ADD_MEMBER");
     await expect(page.getByText("ADD_MEMBER")).toBeVisible();
   });
 
   test("receptionist is blocked from audit logs", async ({ page }) => {
-    await loginAndSelectWorkspace(page, RECEPTIONIST);
+    await loginAndGoToDashboard(page, RECEPTIONIST);
 
     // Try to access audit logs directly
     await page.goto("/app/audit-logs");
@@ -142,10 +142,10 @@ test.describe("Owner Intelligence", () => {
     await expect(page.getByTestId("audit-logs-page")).not.toBeVisible();
   });
 
-  // ── Additional Edge Cases ─────────────────────────────────────────────
+  // â”€â”€ Additional Edge Cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("audit log table has correct columns", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER);
+    await loginAndGoToDashboard(page, OWNER);
     await page.goto("/app/audit-logs");
     await expect(page.getByTestId("audit-logs-page")).toBeVisible({ timeout: 5_000 });
 
@@ -155,7 +155,7 @@ test.describe("Owner Intelligence", () => {
   });
 
   test("analytics page shows KPI card structure", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER);
+    await loginAndGoToDashboard(page, OWNER);
     await page.goto("/app/analytics");
     await expect(page.getByTestId("analytics-page")).toBeVisible({ timeout: 5_000 });
 
@@ -165,7 +165,7 @@ test.describe("Owner Intelligence", () => {
   });
 
   test("audit log filter narrows results", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER);
+    await loginAndGoToDashboard(page, OWNER);
     await page.goto("/app/audit-logs");
     await expect(page.getByTestId("audit-logs-page")).toBeVisible({ timeout: 5_000 });
 

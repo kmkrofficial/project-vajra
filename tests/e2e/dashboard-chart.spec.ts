@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
+  seedGymForUser,
   seedMember,
-  addStaffToWorkspace,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
-  loginAndSelectWorkspace,
+  loginAndGoToDashboard,
 } from "./helpers";
 
 const OWNER = {
@@ -21,7 +21,7 @@ const STAFF = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 let staffId: string;
@@ -32,15 +32,15 @@ test.describe("Dashboard Hourly Activity", () => {
     userId = await createTestUser(OWNER);
     staffId = await createTestUser(STAFF);
 
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
-    await addStaffToWorkspace(workspaceId, branchId, staffId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, staffId, "RECEPTIONIST");
 
     // Seed attendance data across multiple days so the average hourly chart has data
     const memberId = await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Chart Test Member",
       phone: "9000000100",
@@ -56,23 +56,23 @@ test.describe("Dashboard Hourly Activity", () => {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 9, 0, 0);
       await sql2`
         INSERT INTO attendance (workspace_id, branch_id, member_id, checked_in_at)
-        VALUES (${workspaceId}, ${branchId}, ${memberId}, ${d})
+        VALUES (${gymId}, ${branchId}, ${memberId}, ${d})
       `;
     }
     await sql2.end();
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${STAFF.email})`;
     await sql.end();
   });
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("dashboard renders popular times chart card", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // The popular times card should be visible on the dashboard
     await expect(page.getByTestId("hourly-activity-card")).toBeVisible({
@@ -87,7 +87,7 @@ test.describe("Dashboard Hourly Activity", () => {
   });
 
   test("dashboard shows popular times with seeded attendance data", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // The popular times card should be visible
     await expect(page.getByTestId("popular-times")).toBeVisible({
@@ -102,7 +102,7 @@ test.describe("Dashboard Hourly Activity", () => {
   });
 
   test("admin sees revenue summary on dashboard", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // Admin should see revenue summary section
     await expect(page.getByTestId("revenue-summary")).toBeVisible({
@@ -111,7 +111,7 @@ test.describe("Dashboard Hourly Activity", () => {
   });
 
   test("staff does not see revenue summary on dashboard", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF, expect);
+    await loginAndGoToDashboard(page, STAFF, expect);
 
     // Staff should NOT see revenue summary
     await expect(page.getByTestId("revenue-summary")).not.toBeVisible({
@@ -125,7 +125,7 @@ test.describe("Dashboard Hourly Activity", () => {
   });
 
   test("dashboard FABs are visible for admin", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     await expect(page.getByTestId("fab-add-member")).toBeVisible({ timeout: 5_000 });
     await expect(page.getByTestId("fab-launch-kiosk")).toBeVisible({ timeout: 5_000 });

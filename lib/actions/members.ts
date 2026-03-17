@@ -2,9 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails } from "@/lib/gym-context";
 import { getPlanById } from "@/lib/dal/plans";
 import {
   insertMember,
@@ -62,27 +60,19 @@ export async function createMember(data: {
     return { success: false, error: firstError };
   }
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
-
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership) {
-    return { success: false, error: "Insufficient permissions." };
-  }
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   // Look up the plan
-  const plan = await getPlanById(data.planId, ws.workspaceId);
+  const plan = await getPlanById(data.planId, gym.gymId);
   if (!plan || !plan.active) {
     return { success: false, error: "Invalid or inactive plan." };
   }
 
-  // Get workspace details for UPI string
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
+  // Get gym details for UPI string
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
   if (!workspace) {
-    return { success: false, error: "Workspace not found." };
+    return { success: false, error: "Gym not found." };
   }
 
   // Use provided kiosk PIN or auto-generate a random 4-digit PIN
@@ -91,7 +81,7 @@ export async function createMember(data: {
   try {
     // Create member with PENDING_PAYMENT status
     const member = await insertMember({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       branchId: data.branchId,
       name: data.name,
       phone: data.phone,
@@ -101,7 +91,7 @@ export async function createMember(data: {
 
     // Create a pending transaction
     const txn = await insertTransaction({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       memberId: member.id,
       planId: data.planId,
       amount: plan.price,
@@ -114,7 +104,7 @@ export async function createMember(data: {
     const upiString = `upi://pay?pa=${upiPa}&pn=${upiPn}&am=${plan.price}&cu=INR`;
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "CREATE_MEMBER",
       entityType: "MEMBER",
@@ -132,7 +122,7 @@ export async function createMember(data: {
       },
     };
   } catch (err) {
-    logger.error({ err, action: "create_member", workspaceId: ws.workspaceId, userId: session.user.id }, "Failed to create member");
+    logger.error({ err, action: "create_member", gymId: gym.gymId, userId: session.user.id }, "Failed to create member");
     return { success: false, error: "Failed to create member." };
   }
 }
@@ -151,21 +141,13 @@ export async function markAsPaid(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
-
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership) {
-    return { success: false, error: "Insufficient permissions." };
-  }
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   try {
     const result = await completeTransaction(
       transactionId,
-      ws.workspaceId,
+      gym.gymId,
       durationDays
     );
     if (!result) {
@@ -173,7 +155,7 @@ export async function markAsPaid(
     }
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "MARK_AS_PAID",
       entityType: "TRANSACTION",
@@ -184,7 +166,7 @@ export async function markAsPaid(
     revalidatePath("/app/dashboard");
     return { success: true };
   } catch (err) {
-    logger.error({ err, action: "mark_as_paid", workspaceId: ws.workspaceId, userId: session.user.id, transactionId }, "Failed to complete payment");
+    logger.error({ err, action: "mark_as_paid", gymId: gym.gymId, userId: session.user.id, transactionId }, "Failed to complete payment");
     return { success: false, error: "Failed to complete payment." };
   }
 }
@@ -197,10 +179,10 @@ export async function fetchMembers() {
   const session = await getSession();
   if (!session?.user) return [];
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return [];
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return [];
 
-  return getMembers(ws.workspaceId);
+  return getMembers(gym.gymId);
 }
 
 /**
@@ -212,10 +194,10 @@ export async function fetchMember(memberId: string) {
   const session = await getSession();
   if (!session?.user) return null;
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return null;
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return null;
 
-  return getMemberById(memberId, ws.workspaceId);
+  return getMemberById(memberId, gym.gymId);
 }
 
 /**
@@ -232,11 +214,8 @@ export async function createEnquiry(data: {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
-
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership) return { success: false, error: "Insufficient permissions." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   if (!data.name?.trim() || !data.phone?.trim()) {
     return { success: false, error: "Name and phone are required." };
@@ -244,7 +223,7 @@ export async function createEnquiry(data: {
 
   try {
     const member = await insertMember({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       branchId: data.branchId,
       name: data.name,
       phone: data.phone,
@@ -254,7 +233,7 @@ export async function createEnquiry(data: {
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "CREATE_ENQUIRY",
       entityType: "MEMBER",
@@ -266,7 +245,7 @@ export async function createEnquiry(data: {
     revalidatePath("/app/members");
     return { success: true, data: { memberId: member.id } };
   } catch (err) {
-    logger.error({ err, action: "create_enquiry", workspaceId: ws.workspaceId }, "Failed to create enquiry");
+    logger.error({ err, action: "create_enquiry", gymId: gym.gymId }, "Failed to create enquiry");
     return { success: false, error: "Failed to create enquiry." };
   }
 }
@@ -285,11 +264,8 @@ export async function createTrialMember(data: {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
-
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership) return { success: false, error: "Insufficient permissions." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   if (!data.name?.trim() || !data.phone?.trim()) {
     return { success: false, error: "Name and phone are required." };
@@ -299,7 +275,7 @@ export async function createTrialMember(data: {
 
   try {
     const member = await insertMember({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       branchId: data.branchId,
       name: data.name,
       phone: data.phone,
@@ -309,7 +285,7 @@ export async function createTrialMember(data: {
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "CREATE_TRIAL_MEMBER",
       entityType: "MEMBER",
@@ -321,7 +297,7 @@ export async function createTrialMember(data: {
     revalidatePath("/app/members");
     return { success: true, data: { memberId: member.id, checkinPin } };
   } catch (err) {
-    logger.error({ err, action: "create_trial_member", workspaceId: ws.workspaceId }, "Failed to create trial member");
+    logger.error({ err, action: "create_trial_member", gymId: gym.gymId }, "Failed to create trial member");
     return { success: false, error: "Failed to create trial member." };
   }
 }

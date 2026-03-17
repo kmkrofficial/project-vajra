@@ -31,7 +31,7 @@ test.describe("Authentication Flow", () => {
     await expect(page).toHaveURL(/\/(verify-email|onboarding)/, { timeout: 10_000 });
   });
 
-  test("should sign in an existing user and redirect to /workspaces", async ({
+  test("should sign in an existing user and redirect to /onboarding", async ({
     page,
   }) => {
     // Create user directly in DB with verified email (avoids UI signup race)
@@ -48,8 +48,8 @@ test.describe("Authentication Flow", () => {
     await page.getByLabel("Password").fill("TestPassword123!");
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    // After successful login, should redirect to /workspaces or /onboarding
-    await expect(page).toHaveURL(/\/(workspaces|onboarding)/, {
+    // After successful login, user without a gym goes to /onboarding
+    await expect(page).toHaveURL(/\/onboarding/, {
       timeout: 10_000,
     });
   });
@@ -162,15 +162,15 @@ test.describe("Authentication Flow", () => {
     await page.context().clearCookies();
     await page.goto("/app/dashboard");
 
-    // Should end up on /login or /workspaces
-    await expect(page).toHaveURL(/\/(login|workspaces)/, { timeout: 10_000 });
+    // Should end up on /login
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 
-  test("unauthenticated user accessing /workspaces is redirected to /login", async ({
+  test("unauthenticated user accessing /app/members is redirected to /login", async ({
     page,
   }) => {
     await page.context().clearCookies();
-    await page.goto("/workspaces");
+    await page.goto("/app/members");
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });

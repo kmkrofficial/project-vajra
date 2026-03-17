@@ -87,7 +87,7 @@ A self-hosted B2B SaaS **Gym Operations Platform** built for independent gym own
 ```
 
 **Key design principles:**
-- Every DB query is scoped by `workspace_id` (application-level multi-tenancy)
+- Every DB query is scoped by `workspace_id` (single-gym tenancy)
 - RBAC is enforced in Server Actions, not at the DB level
 - Mutations go through `lib/actions/` (Server Actions)
 - Reads go through `lib/dal/` (Data Access Layer)
@@ -172,7 +172,7 @@ npm run db:seed
 ```
 
 This creates:
-- **1 workspace** ("Vajra Iron Temple") with **5 branches** across Bangalore
+- **1 gym** ("Vajra Iron Temple") with **5 branches** across Bangalore
 - **6 pricing plans** (₹800–₹12,000)
 - **~190 members** with realistic lifecycle (active, expired, churned, pending)
 - **300+ transactions** with renewals
@@ -223,7 +223,6 @@ project-vajra/
 │   │   └── signup/page.tsx       # /signup
 │   ├── (app)/                    # Authenticated route group
 │   │   ├── onboarding/page.tsx   # /onboarding (first-time setup)
-│   │   ├── workspaces/           # /workspaces (workspace picker)
 │   │   ├── kiosk/                # /kiosk (full-screen check-in)
 │   │   └── app/                  # /app/* (main application)
 │   │       ├── layout.tsx        # Sidebar + TopBar + MobileNav
@@ -240,13 +239,13 @@ project-vajra/
 │   ├── ui/                       # shadcn/ui primitives
 │   ├── features/                 # Business logic components
 │   │   ├── add-member-sheet.tsx  # Add Member slide-over form
-│   │   └── workspace-switcher.tsx# Workspace selection (dark-launched)
+│   │   └── language-switcher.tsx # Language selection
 │   ├── layout/                   # Shell components
 │   │   ├── app-sidebar.tsx       # Desktop sidebar navigation
 │   │   ├── mobile-nav.tsx        # Bottom tab navigation
 │   │   └── top-bar.tsx           # Top bar with user menu
 │   └── providers/
-│       └── workspace-provider.tsx# Client-side workspace context
+│       └── workspace-provider.tsx# Client-side branch & role context
 ├── lib/
 │   ├── db/
 │   │   ├── schema.ts             # Drizzle ORM table definitions
@@ -256,7 +255,7 @@ project-vajra/
 │   ├── auth.ts                   # Better-Auth configuration
 │   ├── auth-client.ts            # Client-side auth helpers
 │   ├── logger.ts                 # Pino logger (auto-redacts PII)
-│   ├── workspace-cookie.ts       # Server-side workspace cookie reader
+│   ├── gym-context.ts            # Server-side gym context (DB-based)
 │   ├── whatsapp.ts               # wa.me link generator
 │   ├── validations.ts            # Zod schemas (phone, email, PIN)
 │   └── utils.ts                  # cn() — Tailwind class merger
@@ -313,9 +312,9 @@ All tables are defined in `lib/db/schema.ts` using Drizzle ORM. The schema uses 
 | `user` | Better-Auth user accounts | `id (text PK)`, `name`, `email`, `email_verified` |
 | `session` | Active sessions | `token`, `userId`, `expiresAt` |
 | `account` | Auth credentials | `providerId`, `password` (hashed) |
-| `gym_workspaces` | Tenant root | `name`, `primaryBranchName`, `ownerUpiId` |
+| `gym_workspaces` | Gym organization | `name`, `primaryBranchName`, `ownerUpiId` |
 | `branches` | Physical gym locations | `workspaceId`, `name`, `latitude`, `longitude` |
-| `workspace_users` | User ↔ workspace membership | `userId`, `role` (enum), `assignedBranchId` |
+| `workspace_users` | User ↔ gym membership | `userId`, `role` (enum), `assignedBranchId` |
 | `plans` | Subscription tiers | `name`, `price` (INR), `durationDays`, `active` |
 | `members` | Gym members | `name`, `phone`, `checkinPin`, `status` (enum), `expiryDate` |
 | `transactions` | Payment records | `memberId`, `planId`, `amount`, `paymentMethod`, `status` |
@@ -361,16 +360,16 @@ export const auth = betterAuth({
 
 ---
 
-## Multi-Tenancy & RBAC
+## Single-Gym Tenancy & RBAC
 
-### Multi-Tenancy Model
+### Tenancy Model
 
-Every data entity belongs to a `workspace_id`. This is **application-level isolation**, not database-level RLS. Every DAL query and Server Action explicitly filters by `workspace_id`.
+Every data entity belongs to a `workspace_id`. Each user belongs to exactly one gym. The gym context is resolved from the database via `getGymContext(userId)` in `lib/gym-context.ts`. There is no workspace picker or cookie-based switching.
 
-**Workspace selection flow:**
-1. After login, the user is shown `/workspaces` — a list of gym orgs they belong to
-2. Clicking a workspace writes a `vajra_active_workspace` cookie containing `{ workspaceId, branchId, role }`
-3. All subsequent pages read this cookie (server-side via `getActiveWorkspace()`) to scope queries
+**Gym resolution flow:**
+1. After login, the user is auto-redirected to `/app/dashboard` if they have a gym, or `/onboarding` if they don't
+2. Server actions call `getGymContext(userId)` which queries the `workspace_users` table to find the user's gym and role
+3. All subsequent queries are scoped by the resolved `gymId`
 
 ### RBAC Roles
 

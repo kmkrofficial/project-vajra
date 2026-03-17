@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails } from "@/lib/gym-context";
 import { getWorkspaceConfig } from "@/lib/dal/config";
 import cfg from "@/lib/config";
 import KioskNumpad from "./kiosk-numpad";
@@ -20,13 +19,13 @@ export default async function KioskPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
-  const branchId = ws.branchId ?? workspace.branches[0]?.id ?? null;
+  const branchId = gym.branchId ?? workspace.branches[0]?.id ?? null;
 
   if (!branchId) {
     return (
@@ -46,7 +45,7 @@ export default async function KioskPage({
     );
   }
 
-  const config = await getWorkspaceConfig(ws.workspaceId, branchId);
+  const config = await getWorkspaceConfig(gym.gymId, branchId);
   const checkoutEnabled = config?.checkoutEnabled ?? false;
 
   return <KioskNumpad branchId={branchId} checkoutEnabled={checkoutEnabled} overlayResetMs={cfg.kiosk.overlayResetMs} />;

@@ -1,14 +1,14 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   seedMember,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Shared Test Data ───────────────────────────────────────────────────────
+// â”€â”€â”€ Shared Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Staff Test Owner",
@@ -22,12 +22,12 @@ const RECEPTIONIST = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let ownerId: string;
 let receptionistId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe("Staff RBAC & Kiosk", () => {
   test.beforeAll(async () => {
@@ -35,19 +35,19 @@ test.describe("Staff RBAC & Kiosk", () => {
     ownerId = await createTestUser(OWNER);
     receptionistId = await createTestUser(RECEPTIONIST);
 
-    // Seed workspace (owner as SUPER_ADMIN)
-    const seeded = await seedWorkspaceForUser(ownerId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym (owner as SUPER_ADMIN)
+    const seeded = await seedGymForUser(ownerId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Add receptionist as staff
-    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, receptionistId, "RECEPTIONIST");
 
     // Seed an ACTIVE member for kiosk testing
     const futureExpiry = new Date();
     futureExpiry.setDate(futureExpiry.getDate() + 30);
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Kiosk Test Member",
       phone: "9000000001",
@@ -60,7 +60,7 @@ test.describe("Staff RBAC & Kiosk", () => {
     const pastExpiry = new Date();
     pastExpiry.setDate(pastExpiry.getDate() - 10);
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Expired Kiosk Member",
       phone: "9000000002",
@@ -73,21 +73,21 @@ test.describe("Staff RBAC & Kiosk", () => {
     const sql3 = getTestDb();
     await sql3`
       INSERT INTO configuration (workspace_id, branch_id, checkout_enabled, theme_mode)
-      VALUES (${workspaceId}, ${branchId}, true, 'system')
+      VALUES (${gymId}, ${branchId}, true, 'system')
       ON CONFLICT DO NOTHING
     `;
     await sql3.end();
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
 
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${RECEPTIONIST.email})`;
     await sql.end();
   });
 
-  // ─── RBAC Test ──────────────────────────────────────────────────────────
+  // â”€â”€â”€ RBAC Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("receptionist should NOT see revenue summary on dashboard", async ({
     page,
@@ -106,7 +106,7 @@ test.describe("Staff RBAC & Kiosk", () => {
     await expect(page.getByTestId("staff-summary")).toBeVisible();
   });
 
-  // ─── Kiosk Test ─────────────────────────────────────────────────────────
+  // â”€â”€â”€ Kiosk Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("kiosk shows success for valid ACTIVE member PIN", async ({ page }) => {
     // First, log in and select workspace to set the cookie
@@ -161,7 +161,7 @@ test.describe("Staff RBAC & Kiosk", () => {
     await expect(page.getByText(/membership has expired/i)).toBeVisible();
   });
 
-  // ── Additional edge cases ───────────────────────────────────────────
+  // â”€â”€ Additional edge cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("kiosk check-in creates attendance record in DB", async ({ page }) => {
     // Login as owner and go to kiosk
@@ -186,7 +186,7 @@ test.describe("Staff RBAC & Kiosk", () => {
     const sql = getTestDb();
     const [att] = await sql`
       SELECT id, checked_out_at FROM attendance
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY checked_in_at DESC LIMIT 1
     `;
     expect(att).toBeTruthy();
@@ -206,7 +206,7 @@ test.describe("Staff RBAC & Kiosk", () => {
 
     await page.goto("/kiosk");
 
-    // Same member PIN — this is a second entry after the check-in test
+    // Same member PIN â€” this is a second entry after the check-in test
     // It could be check-in or check-out depending on open session state
     await page.getByTestId("kiosk-key-5").click();
     await page.getByTestId("kiosk-key-6").click();
@@ -222,7 +222,7 @@ test.describe("Staff RBAC & Kiosk", () => {
     const sql = getTestDb();
     const [att] = await sql`
       SELECT id FROM attendance
-      WHERE workspace_id = ${workspaceId}
+      WHERE workspace_id = ${gymId}
       ORDER BY checked_in_at DESC LIMIT 1
     `;
     expect(att).toBeTruthy();
@@ -232,7 +232,7 @@ test.describe("Staff RBAC & Kiosk", () => {
   test("PENDING_PAYMENT member PIN is rejected at kiosk", async ({ page }) => {
     // Seed PENDING_PAYMENT member
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Pending Staff Member",
       phone: "9000000050",

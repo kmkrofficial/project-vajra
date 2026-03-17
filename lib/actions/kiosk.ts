@@ -1,9 +1,6 @@
 "use server";
 
 import { getMemberByPin } from "@/lib/dal/members";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getSession } from "@/lib/actions/auth";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { findOpenSession, checkIn, checkOut } from "@/lib/dal/attendance";
 import { logger } from "@/lib/logger";

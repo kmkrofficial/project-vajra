@@ -1,12 +1,12 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
+  seedGymForUser,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "Update Feature Owner",
@@ -14,11 +14,11 @@ const OWNER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe("Plan & Branch Updates", () => {
   test.describe.configure({ mode: "serial" });
@@ -37,21 +37,21 @@ test.describe("Plan & Branch Updates", () => {
     // Create user directly in DB (bypasses UI signup race condition)
     userId = await createTestUser(OWNER);
 
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
     await sql.end();
   });
 
-  // ── Helper ────────────────────────────────────────────────────────────
+  // â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page
   ) {
     await page.goto("/login");
@@ -61,20 +61,20 @@ test.describe("Plan & Branch Updates", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("owner creates a plan then edits its name, price, and duration", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
-    // ── Step 1: Create a plan ──
+    // â”€â”€ Step 1: Create a plan â”€â”€
     await page.goto("/app/settings/plans");
     await expect(page).toHaveURL(/\/app\/settings\/plans/);
 
     await page.getByTestId("create-plan-btn").click();
     await page.getByLabel("Plan Name").fill("3 Month Gold");
-    await page.getByLabel("Price (₹)").fill("3000");
+    await page.getByLabel("Price (â‚¹)").fill("3000");
     await page.getByLabel("Duration (days)").fill("90");
     await page.getByTestId("submit-plan-btn").click();
 
@@ -82,13 +82,13 @@ test.describe("Plan & Branch Updates", () => {
     await expect(page.getByText("3 Month Gold")).toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.getByText("₹3000")).toBeVisible();
+    await expect(page.getByText("â‚¹3000")).toBeVisible();
 
-    // ── Step 2: Click edit on the new plan ──
+    // â”€â”€ Step 2: Click edit on the new plan â”€â”€
     const editBtn = page.locator("[data-testid^='edit-plan-']").last();
     await editBtn.click();
 
-    // ── Step 3: Update all three fields ──
+    // â”€â”€ Step 3: Update all three fields â”€â”€
     const nameInput = page.getByTestId("edit-plan-name");
     const priceInput = page.getByTestId("edit-plan-price");
     const durationInput = page.getByTestId("edit-plan-duration");
@@ -107,18 +107,18 @@ test.describe("Plan & Branch Updates", () => {
       page.locator("[data-sonner-toast]").filter({ hasText: /updated/i })
     ).toBeVisible({ timeout: 5_000 });
 
-    // ── Step 4: Verify updated values ──
+    // â”€â”€ Step 4: Verify updated values â”€â”€
     await expect(page.getByText("3 Month Platinum")).toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.getByText("₹3500")).toBeVisible();
+    await expect(page.getByText("â‚¹3500")).toBeVisible();
     await expect(page.getByText("100 days")).toBeVisible();
 
     // Verify in DB
     const sql = getTestDb();
     const [plan] = await sql`
       SELECT name, price, duration_days FROM plans
-      WHERE workspace_id = ${workspaceId} AND name = '3 Month Platinum'
+      WHERE workspace_id = ${gymId} AND name = '3 Month Platinum'
     `;
     expect(plan.name).toBe("3 Month Platinum");
     expect(plan.price).toBe(3500);
@@ -129,9 +129,9 @@ test.describe("Plan & Branch Updates", () => {
   test("owner creates a branch then edits its name and phone", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
-    // ── Step 1: Create a new branch ──
+    // â”€â”€ Step 1: Create a new branch â”€â”€
     await page.goto("/app/branches");
     await expect(page).toHaveURL(/\/app\/branches/, { timeout: 5_000 });
 
@@ -143,14 +143,14 @@ test.describe("Plan & Branch Updates", () => {
       timeout: 5_000,
     });
 
-    // ── Step 2: Click edit on the new branch ──
+    // â”€â”€ Step 2: Click edit on the new branch â”€â”€
     const branchCard = page.locator("[data-testid^='branch-row-']").filter({
       hasText: "Eastside Gym",
     });
     const editBtn = branchCard.locator("[data-testid^='edit-branch-']");
     await editBtn.click();
 
-    // ── Step 3: Update name and phone ──
+    // â”€â”€ Step 3: Update name and phone â”€â”€
     const nameInput = page.getByTestId("edit-branch-name");
     const phoneInput = page.getByTestId("edit-branch-phone");
 
@@ -166,7 +166,7 @@ test.describe("Plan & Branch Updates", () => {
       page.locator("[data-sonner-toast]").filter({ hasText: /updated/i })
     ).toBeVisible({ timeout: 5_000 });
 
-    // ── Step 4: Verify updated values on the page ──
+    // â”€â”€ Step 4: Verify updated values on the page â”€â”€
     await expect(page.getByText("Eastside Platinum Gym")).toBeVisible({
       timeout: 5_000,
     });
@@ -176,7 +176,7 @@ test.describe("Plan & Branch Updates", () => {
     const sql = getTestDb();
     const [branch] = await sql`
       SELECT name, contact_phone FROM branches
-      WHERE workspace_id = ${workspaceId} AND name = 'Eastside Platinum Gym'
+      WHERE workspace_id = ${gymId} AND name = 'Eastside Platinum Gym'
     `;
     expect(branch.name).toBe("Eastside Platinum Gym");
     expect(branch.contact_phone).toBe("9123456789");
@@ -184,7 +184,7 @@ test.describe("Plan & Branch Updates", () => {
   });
 
   test("owner updates branch GPS coordinates", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/branches");
 
     // Edit the seeded "Main Branch"
@@ -228,10 +228,10 @@ test.describe("Plan & Branch Updates", () => {
     await sql.end();
   });
 
-  // ── Plan Validation ───────────────────────────────────────────────────
+  // â”€â”€ Plan Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("plan name less than 2 chars shows validation error", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/settings/plans");
 
     // Wait for the plan to be visible on the page
@@ -252,7 +252,7 @@ test.describe("Plan & Branch Updates", () => {
   });
 
   test("plan price less than 1 shows validation error", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/settings/plans");
 
     await expect(page.getByText("3 Month Platinum")).toBeVisible({ timeout: 10_000 });
@@ -262,7 +262,7 @@ test.describe("Plan & Branch Updates", () => {
 
     const priceInput = page.getByTestId("edit-plan-price");
     await priceInput.clear();
-    await priceInput.fill("0"); // < ₹1
+    await priceInput.fill("0"); // < â‚¹1
 
     await page.getByTestId("submit-edit-plan").click();
 
@@ -277,7 +277,7 @@ test.describe("Plan & Branch Updates", () => {
   });
 
   test("plan duration less than 1 day shows validation error", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/settings/plans");
 
     await expect(page.getByText("3 Month Platinum")).toBeVisible({ timeout: 10_000 });
@@ -300,10 +300,10 @@ test.describe("Plan & Branch Updates", () => {
     await expect(page.getByTestId("submit-edit-plan")).toBeVisible();
   });
 
-  // ── Branch Validation ─────────────────────────────────────────────────
+  // â”€â”€ Branch Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("branch name less than 2 chars shows validation error", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/branches");
 
     const branchCard = page.locator("[data-testid^='branch-row-']").filter({
@@ -320,13 +320,13 @@ test.describe("Plan & Branch Updates", () => {
     await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 5_000 });
   });
 
-  // ── DB verification ───────────────────────────────────────────────────
+  // â”€â”€ DB verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("plan creation generates audit log", async () => {
     const sql = getTestDb();
     const [log] = await sql`
       SELECT action FROM audit_logs
-      WHERE workspace_id = ${workspaceId} AND action = 'CREATE_PLAN'
+      WHERE workspace_id = ${gymId} AND action = 'CREATE_PLAN'
       ORDER BY created_at DESC LIMIT 1
     `;
     expect(log).toBeTruthy();
@@ -338,7 +338,7 @@ test.describe("Plan & Branch Updates", () => {
     const sql = getTestDb();
     const [log] = await sql`
       SELECT action FROM audit_logs
-      WHERE workspace_id = ${workspaceId} AND action = 'CREATE_BRANCH'
+      WHERE workspace_id = ${gymId} AND action = 'CREATE_BRANCH'
       ORDER BY created_at DESC LIMIT 1
     `;
     expect(log).toBeTruthy();

@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
-  loginAndSelectWorkspace,
+  loginAndGoToDashboard,
 } from "./helpers";
 
 // ─── Shared Test Data ───────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ const STAFF = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let adminId: string;
 let staffId: string;
@@ -88,17 +88,17 @@ test.describe("Authenticated Navigation", () => {
     adminId = await createTestUser(ADMIN);
     staffId = await createTestUser(STAFF);
 
-    // Seed workspace + assign admin
-    const seeded = await seedWorkspaceForUser(adminId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym + assign admin
+    const seeded = await seedGymForUser(adminId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Add staff as RECEPTIONIST
-    await addStaffToWorkspace(workspaceId, branchId, staffId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, staffId, "RECEPTIONIST");
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
 
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${ADMIN.email}, ${STAFF.email})`;
@@ -111,7 +111,7 @@ test.describe("Authenticated Navigation", () => {
     page: import("@playwright/test").Page,
     user: { email: string; password: string }
   ) {
-    await loginAndSelectWorkspace(page, user, expect);
+    await loginAndGoToDashboard(page, user, expect);
   }
 
   // ── Admin sidebar navigation ──────────────────────────────────────────

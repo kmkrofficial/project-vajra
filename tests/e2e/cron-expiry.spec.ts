@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E test for the member expiration cron logic.
  *
  * Seeds members with different expiry dates and verifies that only
@@ -6,9 +6,9 @@
  */
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { getTestDb, seedWorkspaceForUser, cleanupTestData } from "./helpers";
+import { getTestDb, seedGymForUser, cleanupTestData } from "./helpers";
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 
 const TEST_USER_EMAIL = `crontest-${Date.now()}@test.com`;
@@ -27,14 +27,14 @@ test.describe("Member expiration cron", () => {
 
     await sql.end();
 
-    const seeded = await seedWorkspaceForUser(user.id);
-    workspaceId = seeded.workspaceId;
+    const seeded = await seedGymForUser(user.id);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
   });
 
   test.afterAll(async () => {
-    if (workspaceId) {
-      await cleanupTestData(workspaceId);
+    if (gymId) {
+      await cleanupTestData(gymId);
     }
 
     // Clean up test user
@@ -55,20 +55,20 @@ test.describe("Member expiration cron", () => {
     // Seed two ACTIVE members: one expired yesterday, one expires tomorrow
     const [expiredMember] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Expired User', '8000000001', '1111', 'ACTIVE', ${yesterday})
+      VALUES (${gymId}, ${branchId}, 'Expired User', '8000000001', '1111', 'ACTIVE', ${yesterday})
       RETURNING id
     `;
 
     const [activeMember] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Active User', '8000000002', '2222', 'ACTIVE', ${tomorrow})
+      VALUES (${gymId}, ${branchId}, 'Active User', '8000000002', '2222', 'ACTIVE', ${tomorrow})
       RETURNING id
     `;
 
     // Also seed a PENDING_PAYMENT member with past expiry (should NOT be touched)
     await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Pending User', '8000000003', '3333', 'PENDING_PAYMENT', ${yesterday})
+      VALUES (${gymId}, ${branchId}, 'Pending User', '8000000003', '3333', 'PENDING_PAYMENT', ${yesterday})
     `;
 
     // Run the expiration query directly (same logic as markExpiredMembers)
@@ -106,23 +106,23 @@ test.describe("Member expiration cron", () => {
     // Seed an ACTIVE member with past expiry
     await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Idempotent User', '8000000010', '4444', 'ACTIVE', ${yesterday})
+      VALUES (${gymId}, ${branchId}, 'Idempotent User', '8000000010', '4444', 'ACTIVE', ${yesterday})
     `;
 
     // First run
     const firstRun = await sql`
       UPDATE members
       SET status = 'EXPIRED'
-      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${workspaceId} AND phone = '8000000010'
+      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${gymId} AND phone = '8000000010'
       RETURNING id
     `;
     expect(firstRun.length).toBe(1);
 
-    // Second run — should return 0 because member is already EXPIRED
+    // Second run â€” should return 0 because member is already EXPIRED
     const secondRun = await sql`
       UPDATE members
       SET status = 'EXPIRED'
-      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${workspaceId} AND phone = '8000000010'
+      WHERE status = 'ACTIVE' AND expiry_date < now() AND workspace_id = ${gymId} AND phone = '8000000010'
       RETURNING id
     `;
     expect(secondRun.length).toBe(0);
@@ -136,7 +136,7 @@ test.describe("Member expiration cron", () => {
     // Seed a member with NULL expiry_date
     const [member] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'No Expiry User', '8000000020', '5555', 'ACTIVE', ${null})
+      VALUES (${gymId}, ${branchId}, 'No Expiry User', '8000000020', '5555', 'ACTIVE', ${null})
       RETURNING id
     `;
 
@@ -165,7 +165,7 @@ test.describe("Member expiration cron", () => {
     // Seed an already-EXPIRED member
     const [member] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Already Expired', '8000000030', '6666', 'EXPIRED', ${yesterday})
+      VALUES (${gymId}, ${branchId}, 'Already Expired', '8000000030', '6666', 'EXPIRED', ${yesterday})
       RETURNING id
     `;
 
@@ -177,7 +177,7 @@ test.describe("Member expiration cron", () => {
       RETURNING id
     `;
 
-    // Should return 0 — already EXPIRED, not ACTIVE
+    // Should return 0 â€” already EXPIRED, not ACTIVE
     expect(result.length).toBe(0);
 
     await sql.end();
@@ -192,14 +192,14 @@ test.describe("Member expiration cron", () => {
 
     const [trialExpired] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, created_at)
-      VALUES (${workspaceId}, ${branchId}, 'Trial Expired', '8000000040', '7777', 'TRIAL', ${threeDaysAgo})
+      VALUES (${gymId}, ${branchId}, 'Trial Expired', '8000000040', '7777', 'TRIAL', ${threeDaysAgo})
       RETURNING id
     `;
 
     // Seed a TRIAL member created today (should NOT be affected)
     const [trialFresh] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status)
-      VALUES (${workspaceId}, ${branchId}, 'Trial Fresh', '8000000041', '7778', 'TRIAL')
+      VALUES (${gymId}, ${branchId}, 'Trial Fresh', '8000000041', '7778', 'TRIAL')
       RETURNING id
     `;
 
@@ -208,7 +208,7 @@ test.describe("Member expiration cron", () => {
       UPDATE members
       SET status = 'PENDING_PAYMENT'
       WHERE status = 'TRIAL' AND created_at < NOW() - INTERVAL '2 days'
-        AND workspace_id = ${workspaceId}
+        AND workspace_id = ${gymId}
       RETURNING id
     `;
 
@@ -234,14 +234,14 @@ test.describe("Member expiration cron", () => {
 
     const [enquiryOld] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, created_at)
-      VALUES (${workspaceId}, ${branchId}, 'Old Enquiry', '8000000050', '8888', 'ENQUIRY', ${monthAgo})
+      VALUES (${gymId}, ${branchId}, 'Old Enquiry', '8000000050', '8888', 'ENQUIRY', ${monthAgo})
       RETURNING id
     `;
 
     // Seed a fresh ENQUIRY member (should NOT be affected)
     const [enquiryFresh] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status)
-      VALUES (${workspaceId}, ${branchId}, 'Fresh Enquiry', '8000000051', '8889', 'ENQUIRY')
+      VALUES (${gymId}, ${branchId}, 'Fresh Enquiry', '8000000051', '8889', 'ENQUIRY')
       RETURNING id
     `;
 
@@ -250,7 +250,7 @@ test.describe("Member expiration cron", () => {
       UPDATE members
       SET status = 'CHURNED'
       WHERE status = 'ENQUIRY' AND created_at < NOW() - INTERVAL '30 days'
-        AND workspace_id = ${workspaceId}
+        AND workspace_id = ${gymId}
       RETURNING id
     `;
 
@@ -273,7 +273,7 @@ test.describe("Member expiration cron", () => {
     // Seed a TRIAL member
     const [member] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status)
-      VALUES (${workspaceId}, ${branchId}, 'Trial Kiosk User', '8000000060', '9191', 'TRIAL')
+      VALUES (${gymId}, ${branchId}, 'Trial Kiosk User', '8000000060', '9191', 'TRIAL')
       RETURNING id
     `;
 
@@ -293,11 +293,11 @@ test.describe("Member expiration cron", () => {
     // Seed a CHURNED member
     const [member] = await sql`
       INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-      VALUES (${workspaceId}, ${branchId}, 'Churned Member', '8000000070', '9292', 'CHURNED', ${yesterday})
+      VALUES (${gymId}, ${branchId}, 'Churned Member', '8000000070', '9292', 'CHURNED', ${yesterday})
       RETURNING id
     `;
 
-    // Run the ACTIVE→EXPIRED cron query — CHURNED should be untouched
+    // Run the ACTIVEâ†’EXPIRED cron query â€” CHURNED should be untouched
     const result = await sql`
       UPDATE members
       SET status = 'EXPIRED'

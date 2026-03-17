@@ -53,7 +53,7 @@ export default function OnboardingPage() {
 
       if (result.success) {
         toast.success(t("gymReady"));
-        router.push("/workspaces");
+        router.push("/app/dashboard");
         router.refresh();
       } else {
         toast.error(result.error ?? "Onboarding failed. Please try again.");

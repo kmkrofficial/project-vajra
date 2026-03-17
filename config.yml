@@ -59,9 +59,6 @@ auth:
   # Hours until an employee invite token expires
   invite_ttl_hours: 24
 
-  # Cookie max-age for the active-workspace cookie (seconds)
-  workspace_cookie_max_age: 2592000   # 30 days
-
   # HSTS max-age header value (seconds)
   hsts_max_age: 63072000              # 2 years
 

@@ -1,16 +1,16 @@
-/**
+﻿/**
  * E2E tests for the enhanced Members section.
  *
  * Covers: view tabs, search, sort, expiring-soon banner, and URL-based filtering.
  */
 import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
+  seedGymForUser,
   seedMember,
   cleanupTestData,
   getTestDb,
   createTestUser,
-  loginAndSelectWorkspace,
+  loginAndGoToDashboard,
 } from "./helpers";
 
 const OWNER = {
@@ -19,15 +19,15 @@ const OWNER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 
 test.describe("Members filters, views & sort", () => {
   test.beforeAll(async () => {
     userId = await createTestUser(OWNER);
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Seed members in various statuses
@@ -38,7 +38,7 @@ test.describe("Members filters, views & sort", () => {
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Alice Active",
       phone: "7000000001",
@@ -48,7 +48,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Bob Expiring",
       phone: "7000000002",
@@ -58,7 +58,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Charlie Trial",
       phone: "7000000003",
@@ -67,7 +67,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Diana Enquiry",
       phone: "7000000004",
@@ -76,7 +76,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Eve Pending",
       phone: "7000000005",
@@ -85,7 +85,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Frank Expired",
       phone: "7000000006",
@@ -94,7 +94,7 @@ test.describe("Members filters, views & sort", () => {
     });
 
     await seedMember({
-      workspaceId,
+      gymId,
       branchId,
       name: "Grace Churned",
       phone: "7000000007",
@@ -104,16 +104,16 @@ test.describe("Members filters, views & sort", () => {
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email = ${OWNER.email}`;
     await sql.end();
   });
 
-  // ── View tabs ──
+  // â”€â”€ View tabs â”€â”€
 
   test("members page shows view tabs with counts", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members");
 
     await expect(page.getByTestId("member-view-tabs")).toBeVisible({ timeout: 10_000 });
@@ -124,7 +124,7 @@ test.describe("Members filters, views & sort", () => {
   });
 
   test("clicking Active tab filters to active members only", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members");
 
     await page.getByTestId("view-tab-active").click();
@@ -142,7 +142,7 @@ test.describe("Members filters, views & sort", () => {
   });
 
   test("clicking Trial tab filters to trial members", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members?view=trial");
 
     await expect(page.getByText("Charlie Trial")).toBeVisible({ timeout: 10_000 });
@@ -150,20 +150,20 @@ test.describe("Members filters, views & sort", () => {
   });
 
   test("clicking Expiring tab shows expiring-soon members", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members?view=expiring");
 
-    // Bob Expiring has expiry in 3 days — should appear
+    // Bob Expiring has expiry in 3 days â€” should appear
     await expect(page.getByText("Bob Expiring")).toBeVisible({ timeout: 10_000 });
 
     // The expiring banner should be visible
     await expect(page.getByTestId("expiring-banner")).toBeVisible();
   });
 
-  // ── Search ──
+  // â”€â”€ Search â”€â”€
 
   test("search filters members by name", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members");
 
     const searchInput = page.getByTestId("member-search");
@@ -175,7 +175,7 @@ test.describe("Members filters, views & sort", () => {
   });
 
   test("search filters members by phone", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members");
 
     const searchInput = page.getByTestId("member-search");
@@ -185,15 +185,15 @@ test.describe("Members filters, views & sort", () => {
     await expect(page.getByText("Alice Active")).not.toBeVisible();
   });
 
-  // ── Sort ──
+  // â”€â”€ Sort â”€â”€
 
   test("sort dropdown is visible and works", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members");
 
     await page.getByTestId("sort-btn").click();
 
-    // Select "Name A → Z" from the sort dropdown
+    // Select "Name A â†’ Z" from the sort dropdown
     const nameAscItem = page.locator("[data-slot='select-item']").filter({ hasText: "Name A" });
     await expect(nameAscItem).toBeVisible({ timeout: 5_000 });
     await nameAscItem.click();
@@ -203,20 +203,20 @@ test.describe("Members filters, views & sort", () => {
     await expect(firstRow).toContainText("Alice Active");
   });
 
-  // ── URL-based filtering from dashboard ──
+  // â”€â”€ URL-based filtering from dashboard â”€â”€
 
   test("navigating with ?view=pending shows pending members", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members?view=pending");
 
     await expect(page.getByText("Eve Pending")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Alice Active")).not.toBeVisible();
   });
 
-  // ── Member count ──
+  // â”€â”€ Member count â”€â”€
 
   test("member count label updates with view", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
     await page.goto("/app/members?view=churned");
 
     await expect(page.getByTestId("member-count")).toContainText("1 member", { timeout: 10_000 });

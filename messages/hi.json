@@ -191,20 +191,7 @@
     "settingUp": "सेट हो रहा है…",
     "gymReady": "आपका जिम तैयार है!"
   },
-  "workspaces": {
-    "title": "आपके जिम",
-    "selectDescription": "जारी रखने के लिए एक वर्कस्पेस चुनें",
-    "noWorkspaces": "आप अभी किसी वर्कस्पेस से जुड़े नहीं हैं।",
-    "completeOnboarding": "अपना पहला जिम बनाने के लिए ऑनबोर्डिंग पूरी करें।",
-    "switchFailed": "वर्कस्पेस चुनने में विफल।",
-    "myGym": "मेरा जिम",
-    "switching": "बदल रहे हैं…",
-    "selectGym": "जिम चुनें",
-    "switchOrganization": "संगठन बदलें",
-    "switchedTo": "{name} पर स्विच किया"
-  },
   "topbar": {
-    "switchGym": "जिम बदलें",
     "toggleTheme": "थीम बदलें",
     "light": "लाइट",
     "dark": "डार्क",

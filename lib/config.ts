@@ -47,7 +47,6 @@ export interface AppConfig {
   auth: {
     otpTtlMinutes: number;
     inviteTtlHours: number;
-    workspaceCookieMaxAge: number;
     hstsMaxAge: number;
   };
 
@@ -91,7 +90,6 @@ const DEFAULTS: AppConfig = {
   auth: {
     otpTtlMinutes: 15,
     inviteTtlHours: 24,
-    workspaceCookieMaxAge: 2592000,
     hstsMaxAge: 63072000,
   },
   limits: {
@@ -203,7 +201,6 @@ export function loadConfig(): AppConfig {
     auth: {
       otpTtlMinutes: num(data, "auth", "otp_ttl_minutes", DEFAULTS.auth.otpTtlMinutes),
       inviteTtlHours: num(data, "auth", "invite_ttl_hours", DEFAULTS.auth.inviteTtlHours),
-      workspaceCookieMaxAge: num(data, "auth", "workspace_cookie_max_age", DEFAULTS.auth.workspaceCookieMaxAge),
       hstsMaxAge: num(data, "auth", "hsts_max_age", DEFAULTS.auth.hstsMaxAge),
     },
     limits: {

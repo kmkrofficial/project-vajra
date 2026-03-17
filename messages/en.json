@@ -253,7 +253,7 @@
     "verifying": "Verifying…",
     "success": "You're in!",
     "successDescription": "Your invitation has been accepted. Redirecting…",
-    "inviteAccepted": "Invitation accepted! Redirecting to your workspace…",
+    "inviteAccepted": "Invitation accepted! Redirecting to your dashboard…",
     "noAccountNote": "Don't have an account?",
     "signUpFirst": "Sign up first",
     "thenReturn": ", then come back here."
@@ -297,21 +297,7 @@
     "gymReady": "Your gym is ready!"
   },
 
-  "workspaces": {
-    "title": "Your Gyms",
-    "selectDescription": "Select a workspace to continue",
-    "noWorkspaces": "You don't belong to any workspace yet.",
-    "completeOnboarding": "Complete onboarding to create your first gym.",
-    "switchFailed": "Failed to select workspace.",
-    "myGym": "My Gym",
-    "switching": "Switching…",
-    "selectGym": "Select Gym",
-    "switchOrganization": "Switch Organization",
-    "switchedTo": "Switched to {name}"
-  },
-
   "topbar": {
-    "switchGym": "Switch Gym",
     "toggleTheme": "Toggle theme",
     "light": "Light",
     "dark": "Dark",

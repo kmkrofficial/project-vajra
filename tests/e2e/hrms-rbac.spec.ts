@@ -1,13 +1,13 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
 } from "./helpers";
 
-// ─── Test Data ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Test Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OWNER = {
   name: "HRMS RBAC Owner",
@@ -27,13 +27,13 @@ const TRAINER = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 let receptionistId: string;
 let trainerId: string;
 
-// ─── Setup / Teardown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Setup / Teardown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 test.describe("HRMS & RBAC", () => {
   test.beforeAll(async () => {
@@ -42,26 +42,26 @@ test.describe("HRMS & RBAC", () => {
     receptionistId = await createTestUser(RECEPTIONIST);
     trainerId = await createTestUser(TRAINER);
 
-    // Seed workspace
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Add staff roles
-    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
-    await addStaffToWorkspace(workspaceId, branchId, trainerId, "TRAINER");
+    await addStaffToGym(gymId, branchId, receptionistId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, trainerId, "TRAINER");
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${RECEPTIONIST.email}, ${TRAINER.email})`;
     await sql.end();
   });
 
-  // ── Helper ────────────────────────────────────────────────────────────
+  // â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page
   ) {
     await page.goto("/login");
@@ -71,14 +71,14 @@ test.describe("HRMS & RBAC", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   }
 
-  // ── Tests ─────────────────────────────────────────────────────────────
+  // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("owner creates branch, invites employee, then edits role", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
-    // ── Step 1: Create a new branch ──
+    // â”€â”€ Step 1: Create a new branch â”€â”€
     await page.goto("/app/branches");
     await expect(page).toHaveURL(/\/app\/branches/, { timeout: 5_000 });
 
@@ -91,7 +91,7 @@ test.describe("HRMS & RBAC", () => {
       timeout: 5_000,
     });
 
-    // ── Step 2: Navigate to Employees and invite an employee ──
+    // â”€â”€ Step 2: Navigate to Employees and invite an employee â”€â”€
     await page.goto("/app/employees");
     await expect(page).toHaveURL(/\/app\/employees/, { timeout: 5_000 });
 
@@ -121,7 +121,7 @@ test.describe("HRMS & RBAC", () => {
       timeout: 5_000,
     });
 
-    // ── Step 3: Edit the employee role via Edit dialog ──
+    // â”€â”€ Step 3: Edit the employee role via Edit dialog â”€â”€
     const empRow = page.locator(`[data-testid^="employee-row-"]`).filter({
       hasText: "Alice Trainer",
     });
@@ -144,13 +144,13 @@ test.describe("HRMS & RBAC", () => {
     const sql = getTestDb();
     const [emp] = await sql`
       SELECT role FROM employees
-      WHERE workspace_id = ${workspaceId} AND name = 'Alice Trainer'
+      WHERE workspace_id = ${gymId} AND name = 'Alice Trainer'
     `;
     expect(emp.role).toBe("manager");
     await sql.end();
   });
 
-  // ── RBAC: Receptionist restrictions ───────────────────────────────────
+  // â”€â”€ RBAC: Receptionist restrictions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("receptionist is redirected from branches page", async ({ page }) => {
     await page.goto("/login");
@@ -196,7 +196,7 @@ test.describe("HRMS & RBAC", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 
-  // ── RBAC: Trainer restrictions ────────────────────────────────────────
+  // â”€â”€ RBAC: Trainer restrictions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("trainer is redirected from branches page", async ({ page }) => {
     await page.goto("/login");
@@ -231,10 +231,10 @@ test.describe("HRMS & RBAC", () => {
     await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
   });
 
-  // ── Owner has full access ─────────────────────────────────────────────
+  // â”€â”€ Owner has full access â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("owner can access all admin pages", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
     await page.goto("/app/branches");
     await expect(page).toHaveURL(/\/app\/branches/, { timeout: 5_000 });

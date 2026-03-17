@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails } from "@/lib/gym-context";
 import { getWorkspaceAnalytics } from "@/lib/dal/analytics";
 import cfg from "@/lib/config";
 import {
@@ -51,20 +50,20 @@ export default async function AnalyticsPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
   // Only SUPER_ADMIN and MANAGER can view analytics
   if (!["SUPER_ADMIN", "MANAGER"].includes(workspace.role)) {
     redirect("/app/dashboard");
   }
 
-  // Use branch from cookie — null means all branches
-  const activeBranchId = ws.branchId;
-  const analytics = await getWorkspaceAnalytics(ws.workspaceId, activeBranchId);
+  // Use branch from gym context — null means all branches
+  const activeBranchId = gym.branchId;
+  const analytics = await getWorkspaceAnalytics(gym.gymId, activeBranchId);
 
   return (
     <div className="space-y-6 p-4 md:p-6" data-testid="analytics-page">

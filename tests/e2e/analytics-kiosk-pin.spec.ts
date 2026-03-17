@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
-  loginAndSelectWorkspace,
+  loginAndGoToDashboard,
 } from "./helpers";
 
 // ─── Test Users ─────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ const STAFF = {
   password: "TestPassword123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
@@ -34,17 +34,17 @@ test.describe("Analytics & Settings", () => {
     const ownerId = await createTestUser(OWNER);
     const staffUserId = await createTestUser(STAFF);
 
-    // Seed workspace
-    const seeded = await seedWorkspaceForUser(ownerId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym
+    const seeded = await seedGymForUser(ownerId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
     // Add staff
-    await addStaffToWorkspace(workspaceId, branchId, staffUserId, "RECEPTIONIST");
+    await addStaffToGym(gymId, branchId, staffUserId, "RECEPTIONIST");
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
 
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${STAFF.email})`;
@@ -54,7 +54,7 @@ test.describe("Analytics & Settings", () => {
   // ─── Analytics RBAC ─────────────────────────────────────────────────────
 
   test("owner can access analytics page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // Navigate to analytics
     await page.goto("/app/analytics");
@@ -63,7 +63,7 @@ test.describe("Analytics & Settings", () => {
   });
 
   test("staff is redirected away from analytics page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, STAFF, expect);
+    await loginAndGoToDashboard(page, STAFF, expect);
 
     // Try to navigate to analytics
     await page.goto("/app/analytics");
@@ -76,7 +76,7 @@ test.describe("Analytics & Settings", () => {
   // ─── Checkout Toggle in Settings ──────────────────────────────────────
 
   test("owner can toggle checkout setting from settings page", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // Navigate to settings
     await page.goto("/app/settings");
@@ -102,7 +102,7 @@ test.describe("Analytics & Settings", () => {
   });
 
   test("kiosk exit link returns to dashboard", async ({ page }) => {
-    await loginAndSelectWorkspace(page, OWNER, expect);
+    await loginAndGoToDashboard(page, OWNER, expect);
 
     // Navigate to kiosk
     await page.goto("/kiosk");

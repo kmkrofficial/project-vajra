@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership } from "@/lib/dal/workspace";
+import { getGymContext } from "@/lib/gym-context";
 import {
   insertEmployee,
   updateEmployeeRole,
@@ -50,17 +49,16 @@ export async function inviteEmployeeAction(data: {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  if (!ADMIN_ROLES.includes(gym.role)) {
     return { success: false, error: "Only admins can invite employees." };
   }
 
   const email = parsed.data.email.toLowerCase();
 
-  // Check if email is already in use by an active/invited employee in any workspace
+  // Check if email is already in use by an active/invited employee in any gym
   const existing = await isEmployeeEmailTaken(email);
   if (existing) {
     return {
@@ -72,7 +70,7 @@ export async function inviteEmployeeAction(data: {
   try {
     // Create employee record
     const employee = await insertEmployee({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       branchId: parsed.data.branchId,
       name: parsed.data.name.trim(),
       email,
@@ -91,7 +89,7 @@ export async function inviteEmployeeAction(data: {
 
     await createEmployeeInvite({
       employeeId: employee.id,
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       email,
       otpHash: hashed,
       expiresAt: inviteExpiresAt(),
@@ -131,7 +129,7 @@ export async function inviteEmployeeAction(data: {
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "EMPLOYEE_INVITED",
       entityType: "EMPLOYEE",
@@ -157,16 +155,15 @@ export async function resendInviteAction(employeeId: string): Promise<ActionResu
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  if (!ADMIN_ROLES.includes(gym.role)) {
     return { success: false, error: "Only admins can resend invites." };
   }
 
   try {
-    const emp = await getEmployeeById(ws.workspaceId, employeeId);
+    const emp = await getEmployeeById(gym.gymId, employeeId);
     if (!emp) return { success: false, error: "Employee not found." };
     if (emp.status !== "invited") return { success: false, error: "Employee is already active." };
 
@@ -175,7 +172,7 @@ export async function resendInviteAction(employeeId: string): Promise<ActionResu
 
     await createEmployeeInvite({
       employeeId,
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       email: emp.email,
       otpHash: hashed,
       expiresAt: inviteExpiresAt(),
@@ -285,17 +282,16 @@ export async function updateEmployeeRoleAction(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  if (!ADMIN_ROLES.includes(gym.role)) {
     return { success: false, error: "Only admins can modify employee roles." };
   }
 
   try {
     const result = await updateEmployeeRole(
-      ws.workspaceId,
+      gym.gymId,
       employeeId,
       newRole as "manager" | "trainer" | "receptionist"
     );
@@ -305,7 +301,7 @@ export async function updateEmployeeRoleAction(
     }
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "EMPLOYEE_ROLE_UPDATED",
       entityType: "EMPLOYEE",
@@ -344,11 +340,10 @@ export async function editEmployeeAction(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  if (!ADMIN_ROLES.includes(gym.role)) {
     return { success: false, error: "Only admins can edit employees." };
   }
 
@@ -361,7 +356,7 @@ export async function editEmployeeAction(
   }
 
   try {
-    const updated = await updateEmployee(ws.workspaceId, employeeId, {
+    const updated = await updateEmployee(gym.gymId, employeeId, {
       name: parsed.data.name.trim(),
       email,
       phone: parsed.data.phone?.trim() || null,
@@ -376,7 +371,7 @@ export async function editEmployeeAction(
     await setEmployeeBranches(employeeId, branchIds);
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "EMPLOYEE_UPDATED",
       entityType: "EMPLOYEE",
@@ -399,23 +394,22 @@ export async function removeEmployeeAction(employeeId: string): Promise<ActionRe
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || !ADMIN_ROLES.includes(membership.role)) {
+  if (!ADMIN_ROLES.includes(gym.role)) {
     return { success: false, error: "Only admins can remove employees." };
   }
 
   try {
-    const emp = await getEmployeeById(ws.workspaceId, employeeId);
+    const emp = await getEmployeeById(gym.gymId, employeeId);
     if (!emp) return { success: false, error: "Employee not found." };
 
-    const result = await removeEmployee(ws.workspaceId, employeeId);
+    const result = await removeEmployee(gym.gymId, employeeId);
     if (!result) return { success: false, error: "Employee not found." };
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "EMPLOYEE_REMOVED",
       entityType: "EMPLOYEE",
@@ -436,22 +430,20 @@ export async function leaveGymAction(): Promise<ActionResult> {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
   // Don't let SUPER_ADMIN (owner) leave their own gym
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership) return { success: false, error: "Not a member of this workspace." };
-  if (membership.role === "SUPER_ADMIN") {
+  if (gym.role === "SUPER_ADMIN") {
     return { success: false, error: "The gym owner cannot leave. Transfer ownership first." };
   }
 
   try {
-    const result = await employeeLeave(ws.workspaceId, session.user.id);
+    const result = await employeeLeave(gym.gymId, session.user.id);
     if (!result) return { success: false, error: "Employee record not found." };
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "EMPLOYEE_LEFT",
       entityType: "EMPLOYEE",

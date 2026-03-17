@@ -1,17 +1,15 @@
 import { logger } from "@/lib/logger";
 
 /**
- * Cloudflare R2 object storage abstraction.
+ * Supabase Storage object storage abstraction.
  *
- * In production, uses the S3-compatible R2 API via standard fetch.
- * In development, falls back to local filesystem (.r2-local/).
+ * In production, uses the Supabase Storage REST API.
+ * In development, falls back to local filesystem (.storage-local/).
  *
  * Environment variables (production):
- *   R2_ACCOUNT_ID      — Cloudflare account ID
- *   R2_ACCESS_KEY_ID   — R2 API token access key
- *   R2_SECRET_ACCESS_KEY — R2 API token secret
- *   R2_BUCKET_NAME     — R2 bucket name
- *   R2_PUBLIC_URL      — Public URL prefix for the bucket (e.g. https://assets.yourdomain.com)
+ *   SUPABASE_URL          — Supabase project URL (e.g. https://xxx.supabase.co)
+ *   SUPABASE_SERVICE_KEY  — Supabase service_role key (server-side only)
+ *   SUPABASE_STORAGE_BUCKET — Bucket name (default: "assets")
  *
  * @module lib/services/storage
  */
@@ -22,7 +20,7 @@ const isDev = process.env.NODE_ENV !== "production";
 
 // ─── Local dev helpers ──────────────────────────────────────────────────────
 
-const LOCAL_DIR = ".r2-local";
+const LOCAL_DIR = ".storage-local";
 
 async function ensureLocalDir() {
   const { mkdir } = await import("node:fs/promises");
@@ -35,7 +33,6 @@ async function writeLocal(key: string, data: Buffer): Promise<string> {
   const { writeFile } = await import("node:fs/promises");
   const { resolve } = await import("node:path");
   const filePath = resolve(process.cwd(), LOCAL_DIR, key);
-  // Ensure subdirectories exist
   const { mkdir } = await import("node:fs/promises");
   const { dirname } = await import("node:path");
   await mkdir(dirname(filePath), { recursive: true });
@@ -53,89 +50,13 @@ async function deleteLocal(key: string): Promise<void> {
   }
 }
 
-// ─── R2 S3-compatible helpers ───────────────────────────────────────────────
+// ─── Supabase Storage helpers ───────────────────────────────────────────────
 
-/**
- * Compute HMAC-SHA256 signature for AWS Signature V4 (used by R2).
- */
-async function hmacSha256(key: Uint8Array, message: string): Promise<Uint8Array> {
-  const { createHmac } = await import("node:crypto");
-  return new Uint8Array(createHmac("sha256", key).update(message).digest());
-}
-
-async function sha256Hex(data: Buffer): Promise<string> {
-  const { createHash } = await import("node:crypto");
-  return createHash("sha256").update(data).digest("hex");
-}
-
-async function getSigningKey(secret: string, date: string, region: string, service: string) {
-  let key = await hmacSha256(new TextEncoder().encode(`AWS4${secret}`), date);
-  key = await hmacSha256(key, region);
-  key = await hmacSha256(key, service);
-  key = await hmacSha256(key, "aws4_request");
-  return key;
-}
-
-async function signR2Request(
-  method: string,
-  path: string,
-  body: Buffer | null,
-  contentType?: string
-): Promise<{ url: string; headers: Record<string, string> }> {
-  const accountId = process.env.R2_ACCOUNT_ID!;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID!;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!;
-  const bucket = process.env.R2_BUCKET_NAME!;
-
-  const host = `${accountId}.r2.cloudflarestorage.com`;
-  const url = `https://${host}/${bucket}/${path}`;
-  const region = "auto";
-  const service = "s3";
-
-  const now = new Date();
-  const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const amzDate = now.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
-  const payloadHash = body ? await sha256Hex(body) : "UNSIGNED-PAYLOAD";
-
-  const headers: Record<string, string> = {
-    host,
-    "x-amz-date": amzDate,
-    "x-amz-content-sha256": payloadHash,
-  };
-  if (contentType) headers["content-type"] = contentType;
-
-  const signedHeaders = Object.keys(headers).sort().join(";");
-  const canonicalHeaders = Object.keys(headers)
-    .sort()
-    .map((k) => `${k}:${headers[k]}\n`)
-    .join("");
-
-  const canonicalRequest = [
-    method,
-    `/${bucket}/${path}`,
-    "", // query string
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join("\n");
-
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = [
-    "AWS4-HMAC-SHA256",
-    amzDate,
-    credentialScope,
-    await sha256Hex(Buffer.from(canonicalRequest)),
-  ].join("\n");
-
-  const signingKey = await getSigningKey(secretAccessKey, dateStamp, region, service);
-  const { createHmac } = await import("node:crypto");
-  const signature = createHmac("sha256", signingKey).update(stringToSign).digest("hex");
-
-  headers["authorization"] =
-    `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, ` +
-    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  return { url, headers };
+function getSupabaseConfig() {
+  const url = process.env.SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "assets";
+  return { url, serviceKey, bucket };
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -148,7 +69,7 @@ export interface UploadResult {
 }
 
 /**
- * Upload a file to R2 (production) or local filesystem (dev).
+ * Upload a file to Supabase Storage (production) or local filesystem (dev).
  *
  * @param data       Raw file data as a Buffer
  * @param folder     Logical folder (e.g. "upi-qr", "avatars")
@@ -170,22 +91,32 @@ export async function uploadFile(
     return { key, url: localUrl };
   }
 
-  const { url, headers } = await signR2Request("PUT", key, data, contentType);
-  const res = await fetch(url, { method: "PUT", headers, body: new Uint8Array(data) });
+  const { url: supabaseUrl, serviceKey, bucket } = getSupabaseConfig();
+  const endpoint = `${supabaseUrl}/storage/v1/object/${bucket}/${key}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": contentType,
+      "x-upsert": "true",
+    },
+    body: new Uint8Array(data),
+  });
 
   if (!res.ok) {
     const text = await res.text();
-    logger.error({ fn: "uploadFile", status: res.status, body: text }, "R2 upload failed");
-    throw new Error(`R2 upload failed: ${res.status}`);
+    logger.error({ fn: "uploadFile", status: res.status, body: text }, "Supabase upload failed");
+    throw new Error(`Supabase upload failed: ${res.status}`);
   }
 
-  const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
-  logger.info({ fn: "uploadFile", key }, "File uploaded to R2");
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${key}`;
+  logger.info({ fn: "uploadFile", key }, "File uploaded to Supabase Storage");
   return { key, url: publicUrl };
 }
 
 /**
- * Delete a file from R2 (production) or local filesystem (dev).
+ * Delete a file from Supabase Storage (production) or local filesystem (dev).
  */
 export async function deleteFile(key: string): Promise<void> {
   if (isDev) {
@@ -194,16 +125,23 @@ export async function deleteFile(key: string): Promise<void> {
     return;
   }
 
-  const { url, headers } = await signR2Request("DELETE", key, null);
-  const res = await fetch(url, { method: "DELETE", headers });
+  const { url: supabaseUrl, serviceKey, bucket } = getSupabaseConfig();
+  const endpoint = `${supabaseUrl}/storage/v1/object/${bucket}/${key}`;
+
+  const res = await fetch(endpoint, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+    },
+  });
 
   if (!res.ok && res.status !== 404) {
     const text = await res.text();
-    logger.error({ fn: "deleteFile", status: res.status, body: text }, "R2 delete failed");
-    throw new Error(`R2 delete failed: ${res.status}`);
+    logger.error({ fn: "deleteFile", status: res.status, body: text }, "Supabase delete failed");
+    throw new Error(`Supabase delete failed: ${res.status}`);
   }
 
-  logger.info({ fn: "deleteFile", key }, "File deleted from R2");
+  logger.info({ fn: "deleteFile", key }, "File deleted from Supabase Storage");
 }
 
 /**
@@ -211,5 +149,6 @@ export async function deleteFile(key: string): Promise<void> {
  */
 export function getPublicUrl(key: string): string {
   if (isDev) return `/${LOCAL_DIR}/${key}`;
-  return `${process.env.R2_PUBLIC_URL}/${key}`;
+  const { url: supabaseUrl, bucket } = getSupabaseConfig();
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${key}`;
 }

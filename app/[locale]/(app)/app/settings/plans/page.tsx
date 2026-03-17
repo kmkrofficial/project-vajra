@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership, getBranches } from "@/lib/dal/workspace";
+import { getGymContext } from "@/lib/gym-context";
+import { getBranches } from "@/lib/dal/workspace";
 import { getPlans } from "@/lib/dal/plans";
 import { PlansTable } from "./plans-table";
 import { CreatePlanDialog } from "./create-plan-dialog";
@@ -20,20 +20,16 @@ export default async function PlansPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const membership = await verifyWorkspaceMembership(
-    ws.workspaceId,
-    session.user.id
-  );
-  if (!membership || !["SUPER_ADMIN", "MANAGER"].includes(membership.role)) {
+  if (!gym.role || !["SUPER_ADMIN", "MANAGER"].includes(gym.role)) {
     redirect("/app/dashboard");
   }
 
   const [plans, branchList] = await Promise.all([
-    getPlans(ws.workspaceId),
-    getBranches(ws.workspaceId),
+    getPlans(gym.gymId),
+    getBranches(gym.gymId),
   ]);
 
   return (

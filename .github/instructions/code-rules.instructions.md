@@ -9,7 +9,7 @@ You are an elite, product-minded Full-Stack Systems Engineer building "Project V
 * **Testing:** Playwright (Mandatory End-to-End testing for all core user flows).
 * **Styling:** Tailwind CSS + shadcn/ui.
 * **Hosting:** Vercel (serverless, Mumbai bom1 region).
-* **Object Storage:** Cloudflare R2 for image uploads and static assets.
+* **Object Storage:** Supabase Storage for image uploads and static assets.
 * **Messaging:** MSG91 for transactional WhatsApp messages (production). Dev mode uses console logging controlled by `config.yml` toggles.
 * **Email:** SMTP via Nodemailer (production). Dev mode logs to console controlled by `config.yml` toggles.
 
@@ -17,9 +17,9 @@ You are an elite, product-minded Full-Stack Systems Engineer building "Project V
 1. **Zero Vercel Lock-in:** DO NOT use Vercel-specific features (e.g., `@vercel/kv`, `@vercel/cron`). Use standard Node.js / Web APIs.
 2. **Strict Deployment vs. Dev Dockerization:** Do NOT generate `Dockerfile` or `docker-compose.yml` for the app itself. Use `docker-compose.yml` strictly to spin up a local PostgreSQL for development.
 3. **Mandatory E2E Testing:** Every new feature MUST include a corresponding End-to-End test using Playwright in the `tests/e2e/` directory. Tests must verify the critical path (e.g., auth, RBAC constraints, add member, generate UPI link). Code will not be considered complete without a passing test.
-4. **Database & Multi-Tenancy:** We are not using BaaS RLS. You must build a robust Data Access Layer (DAL). EVERY database query must explicitly filter by `workspace_id` and enforce Role-Based Access Control (RBAC) at the application level.
+4. **Database & Tenancy:** We are not using BaaS RLS. You must build a robust Data Access Layer (DAL). EVERY database query must explicitly filter by `workspace_id` (gym ID column) and enforce Role-Based Access Control (RBAC) at the application level. Each user belongs to exactly one gym — use `getGymContext()` from `lib/gym-context.ts` to resolve gym context.
 5. **External Services:** Payments use standard `upi://pay` deep links. WhatsApp notifications use MSG91 API in production. Email uses SMTP. Both are toggled off in dev via `config.yml` (messages are logged to console instead).
-6. **Cloudflare R2:** All user-uploaded files (e.g., UPI QR images) are stored in Cloudflare R2. Use the `lib/services/storage.ts` abstraction. In dev, files are stored in a local `.r2-local/` directory.
+6. **Supabase Storage:** All user-uploaded files (e.g., UPI QR images) are stored in Supabase Storage. Use the `lib/services/storage.ts` abstraction. In dev, files are stored in a local `.storage-local/` directory.
 7. **Modularity:** Enforce strict separation of concerns:
    - `app/`: Routing and UI rendering only.
    - `lib/db/`: Database connection and Drizzle schema.

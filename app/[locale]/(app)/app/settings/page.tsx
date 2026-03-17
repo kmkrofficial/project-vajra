@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CreditCard, Fingerprint, MessageSquare } from "lucide-react";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { getWorkspaceDetails } from "@/lib/dal/workspace";
+import { getGymContext, getGymDetails } from "@/lib/gym-context";
 import { getWorkspaceConfig } from "@/lib/dal/config";
 import { CheckoutToggle } from "./checkout-toggle";
 import { UpiHandleEditor } from "./upi-handle-editor";
@@ -23,18 +22,18 @@ export default async function SettingsPage({
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const ws = await getActiveWorkspace();
-  if (!ws) redirect("/workspaces");
+  const gym = await getGymContext(session.user.id);
+  if (!gym) redirect("/onboarding");
 
-  const workspace = await getWorkspaceDetails(ws.workspaceId, session.user.id);
-  if (!workspace) redirect("/workspaces");
+  const workspace = await getGymDetails(gym.gymId, session.user.id);
+  if (!workspace) redirect("/onboarding");
 
   if (!["SUPER_ADMIN", "MANAGER"].includes(workspace.role)) {
     redirect("/app/dashboard");
   }
 
-  const branchId = ws.branchId ?? workspace.branches[0]?.id ?? null;
-  const config = await getWorkspaceConfig(ws.workspaceId, branchId);
+  const branchId = gym.branchId ?? workspace.branches[0]?.id ?? null;
+  const config = await getWorkspaceConfig(gym.gymId, branchId);
   const checkoutEnabled = config?.checkoutEnabled ?? false;
 
   return (

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
-import { getActiveWorkspace } from "@/lib/workspace-cookie";
-import { verifyWorkspaceMembership, createBranch, updateBranch } from "@/lib/dal/workspace";
+import { getGymContext } from "@/lib/gym-context";
+import { createBranch, updateBranch } from "@/lib/dal/workspace";
 import { insertAuditLog } from "@/lib/dal/audit";
 import { logger } from "@/lib/logger";
 
@@ -23,11 +23,10 @@ export async function createBranchAction(data: {
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || membership.role !== "SUPER_ADMIN") {
+  if (gym.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only the owner can create branches." };
   }
 
@@ -44,7 +43,7 @@ export async function createBranchAction(data: {
   }
 
   try {
-    const branch = await createBranch(ws.workspaceId, {
+    const branch = await createBranch(gym.gymId, {
       name: data.name.trim(),
       contactPhone: data.contactPhone?.trim() || null,
       latitude: data.latitude?.trim() || null,
@@ -52,7 +51,7 @@ export async function createBranchAction(data: {
     });
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "CREATE_BRANCH",
       entityType: "BRANCH",
@@ -92,11 +91,10 @@ export async function updateBranchAction(
   const session = await getSession();
   if (!session?.user) return { success: false, error: "Not authenticated." };
 
-  const ws = await getActiveWorkspace();
-  if (!ws) return { success: false, error: "No active workspace." };
+  const gym = await getGymContext(session.user.id);
+  if (!gym) return { success: false, error: "No gym found." };
 
-  const membership = await verifyWorkspaceMembership(ws.workspaceId, session.user.id);
-  if (!membership || membership.role !== "SUPER_ADMIN") {
+  if (gym.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only the owner can edit branches." };
   }
 
@@ -112,7 +110,7 @@ export async function updateBranchAction(
   }
 
   try {
-    const updated = await updateBranch(branchId, ws.workspaceId, {
+    const updated = await updateBranch(branchId, gym.gymId, {
       name: data.name?.trim(),
       contactPhone: data.contactPhone?.trim() || null,
       latitude: data.latitude?.trim() || null,
@@ -124,7 +122,7 @@ export async function updateBranchAction(
     }
 
     await insertAuditLog({
-      workspaceId: ws.workspaceId,
+      workspaceId: gym.gymId,
       userId: session.user.id,
       action: "UPDATE_BRANCH",
       entityType: "BRANCH",

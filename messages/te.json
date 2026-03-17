@@ -191,20 +191,7 @@
     "settingUp": "సెటప్ అవుతోంది…",
     "gymReady": "మీ జిమ్ సిద్ధం!"
   },
-  "workspaces": {
-    "title": "మీ జిమ్‌లు",
-    "selectDescription": "కొనసాగించడానికి వర్క్‌స్పేస్ ఎంచుకోండి",
-    "noWorkspaces": "మీరు ప్రస్తుతం ఏ వర్క్‌స్పేస్‌లో భాగం కాదు.",
-    "completeOnboarding": "మీ మొదటి జిమ్ సృష్టించడానికి ఆన్‌బోర్డింగ్ పూర్తి చేయండి.",
-    "switchFailed": "వర్క్‌స్పేస్ ఎంపిక విఫలమైంది.",
-    "myGym": "నా జిమ్",
-    "switching": "మారుతోంది…",
-    "selectGym": "జిమ్ ఎంచుకోండి",
-    "switchOrganization": "సంస్థను మార్చండి",
-    "switchedTo": "{name} కు మార్చబడింది"
-  },
   "topbar": {
-    "switchGym": "జిమ్ మార్చు",
     "toggleTheme": "థీమ్ మార్చు",
     "light": "లైట్",
     "dark": "డార్క్",

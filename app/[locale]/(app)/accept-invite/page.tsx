@@ -30,7 +30,7 @@ export default function AcceptInvitePage() {
       setStep("done");
       toast.success(t("inviteAccepted"));
       // Give them a moment to see the success, then redirect
-      setTimeout(() => router.push("/workspaces"), 1500);
+      setTimeout(() => router.push("/app/dashboard"), 1500);
     } else {
       toast.error(result.error ?? "Verification failed.");
     }

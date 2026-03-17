@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
-  seedWorkspaceForUser,
-  addStaffToWorkspace,
+  seedGymForUser,
+  addStaffToGym,
   cleanupTestData,
   getTestDb,
   createTestUser,
@@ -27,7 +27,7 @@ const RECEPTIONIST = {
   password: "StaffPass123!",
 };
 
-let workspaceId: string;
+let gymId: string;
 let branchId: string;
 let userId: string;
 let receptionistId: string;
@@ -40,17 +40,17 @@ test.describe.serial("Employee Invite Flow", () => {
     userId = await createTestUser(OWNER);
     receptionistId = await createTestUser(RECEPTIONIST);
 
-    // Seed workspace
-    const seeded = await seedWorkspaceForUser(userId);
-    workspaceId = seeded.workspaceId;
+    // Seed gym
+    const seeded = await seedGymForUser(userId);
+    gymId = seeded.gymId;
     branchId = seeded.branchId;
 
-    // Add receptionist to workspace
-    await addStaffToWorkspace(workspaceId, branchId, receptionistId, "RECEPTIONIST");
+    // Add receptionist to gym
+    await addStaffToGym(gymId, branchId, receptionistId, "RECEPTIONIST");
   });
 
   test.afterAll(async () => {
-    if (workspaceId) await cleanupTestData(workspaceId);
+    if (gymId) await cleanupTestData(gymId);
     const sql = getTestDb();
     await sql`DELETE FROM "user" WHERE email IN (${OWNER.email}, ${EMPLOYEE.email}, ${RECEPTIONIST.email})`;
     await sql.end();
@@ -58,7 +58,7 @@ test.describe.serial("Employee Invite Flow", () => {
 
   // ── Helper ────────────────────────────────────────────────────────────
 
-  async function loginAndSelectWorkspace(
+  async function loginAndGoToDashboard(
     page: import("@playwright/test").Page,
     user = OWNER
   ) {
@@ -74,7 +74,7 @@ test.describe.serial("Employee Invite Flow", () => {
   test("owner invites employee with email, employee appears as invited", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
 
     // Navigate to employees page
     await page.goto("/app/employees");
@@ -111,7 +111,7 @@ test.describe.serial("Employee Invite Flow", () => {
     const sql = getTestDb();
     const [emp] = await sql`
       SELECT id, status, email FROM employees
-      WHERE workspace_id = ${workspaceId} AND email = ${EMPLOYEE.email}
+      WHERE workspace_id = ${gymId} AND email = ${EMPLOYEE.email}
     `;
     expect(emp).toBeTruthy();
     expect(emp.status).toBe("invited");
@@ -127,7 +127,7 @@ test.describe.serial("Employee Invite Flow", () => {
   });
 
   test("owner can edit employee details", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     // Find the employee row and click edit
@@ -159,7 +159,7 @@ test.describe.serial("Employee Invite Flow", () => {
   });
 
   test("owner can remove an employee", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     // Find the employee
@@ -190,7 +190,7 @@ test.describe.serial("Employee Invite Flow", () => {
     const sql = getTestDb();
     const [emp] = await sql`
       SELECT status FROM employees
-      WHERE workspace_id = ${workspaceId} AND email = ${EMPLOYEE.email}
+      WHERE workspace_id = ${gymId} AND email = ${EMPLOYEE.email}
     `;
     expect(emp.status).toBe("left");
     await sql.end();
@@ -199,7 +199,7 @@ test.describe.serial("Employee Invite Flow", () => {
   test("employee email uniqueness: cannot invite same email to another gym", async ({
     page,
   }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     // The previous employee was marked as "left", so re-inviting the same
@@ -224,7 +224,7 @@ test.describe.serial("Employee Invite Flow", () => {
   // ── Validation Edge Cases ─────────────────────────────────────────────
 
   test("submit button disabled when no role or branch selected", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     await page.getByTestId("invite-employee-btn").click();
@@ -236,7 +236,7 @@ test.describe.serial("Employee Invite Flow", () => {
   });
 
   test("invite with invalid email shows error toast", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     await page.getByTestId("invite-employee-btn").click();
@@ -260,7 +260,7 @@ test.describe.serial("Employee Invite Flow", () => {
   });
 
   test("invite with name less than 2 characters shows error", async ({ page }) => {
-    await loginAndSelectWorkspace(page);
+    await loginAndGoToDashboard(page);
     await page.goto("/app/employees");
 
     await page.getByTestId("invite-employee-btn").click();
@@ -300,7 +300,7 @@ test.describe.serial("Employee Invite Flow", () => {
     const sql = getTestDb();
     const [log] = await sql`
       SELECT action FROM audit_logs
-      WHERE workspace_id = ${workspaceId} AND action = 'EMPLOYEE_INVITED'
+      WHERE workspace_id = ${gymId} AND action = 'EMPLOYEE_INVITED'
       ORDER BY created_at DESC LIMIT 1
     `;
     expect(log).toBeTruthy();

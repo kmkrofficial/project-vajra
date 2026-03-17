@@ -69,14 +69,14 @@ export async function createTestUser(data: {
 }
 
 /**
- * Seed a workspace with a branch and assign a user to it as SUPER_ADMIN.
- * Returns the workspace & branch IDs.
+ * Seed a gym with a branch and assign a user to it as SUPER_ADMIN.
+ * Returns the gym & branch IDs.
  */
-export async function seedWorkspaceForUser(userId: string) {
+export async function seedGymForUser(userId: string) {
   const sql = getTestDb();
 
-  // Create workspace
-  const [workspace] = await sql`
+  // Create gym
+  const [gym] = await sql`
     INSERT INTO gym_workspaces (name, primary_branch_name, owner_upi_id)
     VALUES ('Test Gym', 'Main Branch', 'testowner@upi')
     RETURNING id
@@ -85,29 +85,29 @@ export async function seedWorkspaceForUser(userId: string) {
   // Create branch
   const [branch] = await sql`
     INSERT INTO branches (workspace_id, name, contact_phone)
-    VALUES (${workspace.id}, 'Main Branch', '9999999999')
+    VALUES (${gym.id}, 'Main Branch', '9999999999')
     RETURNING id
   `;
 
   // Link user as SUPER_ADMIN
   await sql`
     INSERT INTO workspace_users (workspace_id, user_id, role, assigned_branch_id)
-    VALUES (${workspace.id}, ${userId}, 'SUPER_ADMIN', ${branch.id})
+    VALUES (${gym.id}, ${userId}, 'SUPER_ADMIN', ${branch.id})
   `;
 
   await sql.end();
 
   return {
-    workspaceId: workspace.id as string,
+    gymId: gym.id as string,
     branchId: branch.id as string,
   };
 }
 
 /**
- * Add a staff user to an existing workspace with a given role.
+ * Add a staff user to an existing gym with a given role.
  */
-export async function addStaffToWorkspace(
-  workspaceId: string,
+export async function addStaffToGym(
+  gymId: string,
   branchId: string,
   userId: string,
   role: "RECEPTIONIST" | "TRAINER" | "MANAGER"
@@ -115,7 +115,7 @@ export async function addStaffToWorkspace(
   const sql = getTestDb();
   await sql`
     INSERT INTO workspace_users (workspace_id, user_id, role, assigned_branch_id)
-    VALUES (${workspaceId}, ${userId}, ${role}, ${branchId})
+    VALUES (${gymId}, ${userId}, ${role}, ${branchId})
   `;
   await sql.end();
 }
@@ -124,7 +124,7 @@ export async function addStaffToWorkspace(
  * Seed a member directly in the database (for testing kiosk, etc.).
  */
 export async function seedMember(data: {
-  workspaceId: string;
+  gymId: string;
   branchId: string;
   name: string;
   phone: string;
@@ -135,7 +135,7 @@ export async function seedMember(data: {
   const sql = getTestDb();
   const [member] = await sql`
     INSERT INTO members (workspace_id, branch_id, name, phone, checkin_pin, status, expiry_date)
-    VALUES (${data.workspaceId}, ${data.branchId}, ${data.name}, ${data.phone},
+    VALUES (${data.gymId}, ${data.branchId}, ${data.name}, ${data.phone},
             ${data.checkinPin}, ${data.status}, ${data.expiryDate ?? null})
     RETURNING id
   `;
@@ -146,9 +146,9 @@ export async function seedMember(data: {
 /**
  * Clean up test data (run after tests).
  */
-export async function cleanupTestData(workspaceId: string) {
+export async function cleanupTestData(gymId: string) {
   const sql = getTestDb();
-  await sql`DELETE FROM gym_workspaces WHERE id = ${workspaceId}`;
+  await sql`DELETE FROM gym_workspaces WHERE id = ${gymId}`;
   await sql.end();
 }
 
@@ -157,8 +157,8 @@ export async function cleanupTestData(workspaceId: string) {
  * Under heavy parallel load the dev server can be slow to respond to
  * scrypt-based password verification, so we retry once before giving up.
  *
- * Single-workspace users are auto-redirected to /app/dashboard.
- * Multi-workspace users land on /workspaces.
+ * Users with a gym are auto-redirected to /app/dashboard.
+ * Users without a gym land on /onboarding.
  */
 export async function loginAs(
   page: import("@playwright/test").Page,
@@ -171,8 +171,8 @@ export async function loginAs(
     await page.getByLabel("Password").fill(user.password);
     await page.getByRole("button", { name: "Sign In" }).click();
     try {
-      // Single-workspace users skip /workspaces and land on /app/dashboard
-      await expect(page).toHaveURL(/\/(workspaces|app\/dashboard)/, { timeout: 12_000 });
+      // Users with a gym go directly to /app/dashboard
+      await expect(page).toHaveURL(/\/(onboarding|app\/dashboard)/, { timeout: 12_000 });
       return; // success
     } catch {
       if (attempt === 1) throw new Error(`Login failed for ${user.email} after 2 attempts`);
@@ -182,18 +182,14 @@ export async function loginAs(
 
 /**
  * Login and ensure we reach /app/dashboard.
- * For single-workspace users this happens automatically via auto-redirect.
- * For multi-workspace users the first workspace card is clicked.
+ * Users with a gym are auto-redirected there.
  */
-export async function loginAndSelectWorkspace(
+export async function loginAndGoToDashboard(
   page: import("@playwright/test").Page,
   user: { email: string; password: string },
   expect: typeof import("@playwright/test").expect
 ) {
   await loginAs(page, user, expect);
-  // If already at dashboard (single workspace auto-redirect), we're done
-  if (page.url().includes("/app/dashboard")) return;
-  // Otherwise click the first workspace card
-  await page.locator("[data-testid^='workspace-card-']").first().click();
+  // Should be at dashboard if user has a gym
   await expect(page).toHaveURL(/\/app\/dashboard/, { timeout: 10_000 });
 }
